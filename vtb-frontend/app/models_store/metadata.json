@@ -1,0 +1,21 @@
+{
+  "solar": {
+    "features": [
+      "hour_sin",
+      "hour_cos",
+      "day_of_week",
+      "horizon_min",
+      "recent_cloud_factor"
+    ],
+    "mae": 0.06468742316908631
+  },
+  "load": {
+    "features": [
+      "hour_sin",
+      "hour_cos",
+      "day_of_week",
+      "is_weekend"
+    ],
+    "mae": 37.00284303568592
+  }
+}
