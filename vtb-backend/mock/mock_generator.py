@@ -23,8 +23,6 @@ TICK_SECONDS = 2
 SPEEDUP = 60
 PUMP_FILL_PCT_PER_TICK = 2.5
 SUMP_CAPACITY_RATIO = 5          # ground sump holds ~5x the overhead tank
-# Municipal supply windows (IST hours) — when the sump refills fastest
-MUNICIPAL_WINDOWS = [(6, 8), (18, 19)]
 
 _state = {f"tank-{i:02d}": {"level_pct": random.uniform(30, 80),
                             "sump_level_pct": random.uniform(50, 90),
@@ -34,7 +32,7 @@ _cloud_override = {"active": False}  # toggled for the demo's "cover the panel" 
 
 
 def _sump_inflow_pct(h: float) -> float:
-    in_window = any(start <= h < end for start, end in MUNICIPAL_WINDOWS)
+    in_window = any(start <= h < end for start, end in config.MUNICIPAL_SUPPLY_WINDOWS)
     # outside the windows a slow trickle keeps the mock from stalling the demo
     return 0.6 if in_window else 0.3
 

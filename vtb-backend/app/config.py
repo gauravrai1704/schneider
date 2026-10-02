@@ -27,6 +27,10 @@ ENERGY_PER_LITRE_WH = 0.5        # Wh of pumping energy per litre lifted
 WATER_LPCD = 135.0
 PERSONS_PER_BUILDING = 5         # Census 2011 avg Indian household ~4.8
 
+# --- Municipal water supply (Delhi Jal Board style twice-daily supply, IST hours) ---
+# The sump only refills inside these windows; the scheduler plans tank pumping around them.
+MUNICIPAL_SUPPLY_WINDOWS = [(5, 7), (18, 20)]
+
 # --- Scheduling ---
 STAGGER_DELAY_SEC = 3            # min delay between two pumps starting
 SOLAR_SURPLUS_THRESHOLD_W = 150  # above this, treat as "green hour"

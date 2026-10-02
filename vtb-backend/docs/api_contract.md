@@ -14,7 +14,7 @@ change without updating both sides.
 
 - `{id}` is the building/tank identifier, e.g. `tank-01`. Any id works — the backend subscribes with the wildcard `vtb/tank/+/telemetry`.
 - `level_pct` is 0–100. `pump_w` is instantaneous pump power draw in watts.
-- `sump_level_pct` (0–100) is **optional but strongly wanted**: dry-run protection is decided from the sump, not the overhead tank. If omitted, the backend skips the sump check and relies on firmware.
+- `sump_level_pct` (0–100) is **expected on every message** — each building reports its own ground sump. Dry-run protection is decided from the sump, not the overhead tank. If a message omits it, the backend skips the server-side sump check for that tick and relies on the firmware's local protection.
 - `ts` is informational; the backend stamps its own receive time. All time-of-day logic runs in IST.
 - Firmware should still enforce dry-run/overflow protection **locally** even if a `cmd` message never arrives (network drop) — see the "offline safety" note in the project plan.
 
