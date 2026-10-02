@@ -1,25 +1,23 @@
-/** Styled like a physical emergency-stop button rather than a generic
- * rounded UI button — this is literally what it does (cuts all pumps). */
+import { useState } from 'react'
+import { IconPause, IconPlay } from './icons'
+
+/** One-tap DISCOM demand response. Big, unmistakable, and it says what it will do. */
 export default function PumpPauseButton({ paused, onToggle }) {
+  const [busy, setBusy] = useState(false)
+  const click = async () => {
+    setBusy(true)
+    try { await onToggle(!paused) } finally { setBusy(false) }
+  }
   return (
     <button
-      onClick={() => onToggle(!paused)}
-      className="flex flex-col items-center gap-2 group"
+      onClick={click}
+      disabled={busy}
+      className={`flex w-full items-center justify-center gap-2 rounded-card px-5 py-4 text-base font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-60 ${
+        paused ? 'bg-accent hover:brightness-110' : 'bg-critical hover:brightness-110'
+      }`}
     >
-      <span
-        className="w-20 h-20 rounded-full flex items-center justify-center transition-transform active:scale-95"
-        style={{
-          background: paused ? '#7A2E2E' : '#E15252',
-          boxShadow: paused
-            ? 'inset 0 3px 6px rgba(0,0,0,0.5)'
-            : '0 4px 0 #8f1f1f, 0 6px 10px rgba(0,0,0,0.4)',
-        }}
-      >
-        <span className="w-14 h-14 rounded-full border-2 border-white/30" />
-      </span>
-      <span className="panel-label text-sm text-text-primary">
-        {paused ? 'pumps paused — resume' : 'pump pause'}
-      </span>
+      {paused ? <IconPlay width={18} height={18} /> : <IconPause width={18} height={18} />}
+      {busy ? 'Sending…' : paused ? 'Resume all pumps' : 'Pause all pumps'}
     </button>
   )
 }

@@ -2,46 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root { height: 100%; }
+/* ---- Theme tokens. Chart colours mirror these in src/theme.js (validated for colour-blind safety). ---- */
+:root {
+  color-scheme: light;
+  --page: #f3f4f6;
+  --surface: #fcfcfb;
+  --raised: #f0f1f3;
+  --line: #e1e0d9;
+  --ink: #0b0b0b;
+  --ink-secondary: #52514e;
+  --ink-muted: #6f6e69;
+  --accent: #2a78d6;          /* water / load */
+  --accent-soft: #e6f0fc;
+  --solar: #eb6834;           /* solar */
+  --solar-soft: #fdeee7;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --good-soft: #e5f5e5;
+  --warning: #fab219;
+  --warning-text: #8a5a00;
+  --warning-soft: #fff4dc;
+  --critical: #d03b3b;
+  --critical-text: #b42f2f;
+  --critical-soft: #fbe9e9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0f1115;
+    --surface: #16181d;
+    --raised: #1e2128;
+    --line: #2a2e36;
+    --ink: #ffffff;
+    --ink-secondary: #c3c2b7;
+    --ink-muted: #9a998f;
+    --accent: #3987e5;
+    --accent-soft: #15243a;
+    --solar: #d95926;
+    --solar-soft: #2c1a12;
+    --good: #0ca30c;
+    --good-text: #3cc63c;
+    --good-soft: #122412;
+    --warning: #fab219;
+    --warning-text: #fab219;
+    --warning-soft: #2b2310;
+    --critical: #d03b3b;
+    --critical-text: #f07272;
+    --critical-soft: #2e1515;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0f1115;
+  --surface: #16181d;
+  --raised: #1e2128;
+  --line: #2a2e36;
+  --ink: #ffffff;
+  --ink-secondary: #c3c2b7;
+  --ink-muted: #9a998f;
+  --accent: #3987e5;
+  --accent-soft: #15243a;
+  --solar: #d95926;
+  --solar-soft: #2c1a12;
+  --good: #0ca30c;
+  --good-text: #3cc63c;
+  --good-soft: #122412;
+  --warning: #fab219;
+  --warning-text: #fab219;
+  --warning-soft: #2b2310;
+  --critical: #d03b3b;
+  --critical-text: #f07272;
+  --critical-soft: #2e1515;
+}
+
+html, body, #root { min-height: 100%; }
 
 body {
-  background: #0D1420;
-  color: #E8EDF4;
-  font-family: 'IBM Plex Mono', monospace;
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Instrument-panel corner brackets instead of generic rounded cards */
-.panel {
-  position: relative;
-  background: #141E2E;
-  border: 1px solid #263449;
-}
-.panel::before, .panel::after {
-  content: '';
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-color: #E8A33D;
-  opacity: 0.6;
-}
-.panel::before {
-  top: -1px; left: -1px;
-  border-top: 2px solid #E8A33D;
-  border-left: 2px solid #E8A33D;
-}
-.panel::after {
-  bottom: -1px; right: -1px;
-  border-bottom: 2px solid #E8A33D;
-  border-right: 2px solid #E8A33D;
-}
-
-.panel-label {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #7C8CA3;
+@layer components {
+  .card {
+    @apply bg-surface border border-line rounded-card;
+  }
+  .card-title {
+    @apply text-sm font-semibold text-ink;
+  }
+  .card-subtitle {
+    @apply text-xs text-ink-muted;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #0D1420; }
-::-webkit-scrollbar-thumb { background: #263449; border-radius: 4px; }
+::-webkit-scrollbar-track { background: var(--page); }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
