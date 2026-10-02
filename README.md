@@ -103,6 +103,6 @@ The full list is in [`vtb-backend/data/SOURCES.md`](vtb-backend/data/SOURCES.md)
 
 | Role | Owner |
 |---|---|
-| Hardware & firmware | _add name_ |
+| Hardware & firmware | Shashwat Rajan |
 | Backend, ML & scheduling | Abhiraj Agarwal |
-| Dashboard & demo | _add name_ |
+| Dashboard & demo | Gaurav Rai |
