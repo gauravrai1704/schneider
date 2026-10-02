@@ -7,13 +7,15 @@ change without updating both sides.
 
 | Topic | Direction | Payload |
 |---|---|---|
-| `vtb/tank/{id}/telemetry` | ESP32 → server | `{"level_pct": 42.5, "pump_on": false, "pump_w": 0.0, "ts": "2026-09-28T10:00:00Z"}` |
+| `vtb/tank/{id}/telemetry` | ESP32 → server | `{"level_pct": 42.5, "sump_level_pct": 70.0, "pump_on": false, "pump_w": 0.0, "ts": "2026-09-28T10:00:00+05:30"}` |
 | `vtb/solar/telemetry` | ESP32 → server | `{"solar_w": 320.5, "lux": 6400.0, "ts": "2026-09-28T10:00:00Z"}` |
 | `vtb/tank/{id}/cmd` | server → ESP32 | `{"action": "ON", "reason": "solar surplus (320W) — pumping in green hour"}` |
 | `vtb/discom/pause` | dashboard → all | `{"active": true}` |
 
-- `{id}` is the building/tank identifier, e.g. `tank-01`. Pick real IDs and tell the backend so they can be pre-subscribed (or ping the backend team to make subscription dynamic).
+- `{id}` is the building/tank identifier, e.g. `tank-01`. Any id works — the backend subscribes with the wildcard `vtb/tank/+/telemetry`.
 - `level_pct` is 0–100. `pump_w` is instantaneous pump power draw in watts.
+- `sump_level_pct` (0–100) is **optional but strongly wanted**: dry-run protection is decided from the sump, not the overhead tank. If omitted, the backend skips the sump check and relies on firmware.
+- `ts` is informational; the backend stamps its own receive time. All time-of-day logic runs in IST.
 - Firmware should still enforce dry-run/overflow protection **locally** even if a `cmd` message never arrives (network drop) — see the "offline safety" note in the project plan.
 
 ## REST API (FastAPI backend)
@@ -33,12 +35,12 @@ Full interactive docs at `http://localhost:8000/docs` once the server is running
 
 ## What's mocked right now
 
-There's no real MQTT broker connected yet — `app/bus.py` provides an
-in-memory pub/sub with the identical `publish`/`subscribe` interface, and
-`mock/mock_generator.py` runs automatically inside the API process,
-publishing realistic fake telemetry for 8 tanks + solar.
+By default there's no broker — `app/bus.py` provides an in-memory pub/sub
+with MQTT topic semantics (`+`/`#` wildcards), and `mock/mock_generator.py`
+runs inside the API process, publishing realistic fake telemetry for 8 tanks
+(with sumps) + solar.
 
-**To switch to real hardware:** set `MQTT_BROKER_URL` in `app/config.py` to
-the broker address, swap `bus = Bus()` for `bus = MqttBus(...)` in
-`app/bus.py`, and export `VTB_DISABLE_MOCK=1`. No other file needs to change
-— every consumer only ever touches `bus.publish`/`bus.subscribe`.
+**To switch to real hardware:** run a broker (e.g. Mosquitto on the demo
+laptop) and start the API with `VTB_MQTT_URL=mqtt://<host>:1883`. The mock
+turns itself off automatically and nothing else changes — every consumer
+only ever touches `bus.publish`/`bus.subscribe`.

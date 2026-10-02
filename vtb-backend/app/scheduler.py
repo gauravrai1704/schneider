@@ -3,7 +3,7 @@ Scheduler: decides ON/OFF for every pump at each tick.
 
 Priority order (highest wins):
   1. DISCOM pause override -> everything OFF
-  2. Safety: sump/tank dry -> OFF, tank overflow -> OFF
+  2. Safety: sump nearly empty (dry-run) -> OFF, tank overflow -> OFF
   3. Predicted dip incoming -> pre-fill now if not already high
   4. Solar surplus right now -> ON
   5. Otherwise -> OFF (don't pump on grid power during a dip/peak)
@@ -17,7 +17,7 @@ from datetime import datetime
 import time
 
 from app.config import (
-    SAFE_MIN_LEVEL_PCT, OVERFLOW_LEVEL_PCT, SOLAR_SURPLUS_THRESHOLD_W,
+    SAFE_MIN_LEVEL_PCT, OVERFLOW_LEVEL_PCT, SUMP_MIN_LEVEL_PCT, SOLAR_SURPLUS_THRESHOLD_W,
     FORECAST_DIP_LOOKAHEAD_MIN, STAGGER_DELAY_SEC,
 )
 from app.forecast import is_predicted_dip
@@ -27,6 +27,7 @@ from app.forecast import is_predicted_dip
 class TankSnapshot:
     building_id: str
     level_pct: float
+    sump_level_pct: float | None = None   # None = firmware doesn't report a sump sensor
 
 
 @dataclass
@@ -63,8 +64,8 @@ class Scheduler:
         ordered = sorted(tanks, key=lambda t: t.level_pct)
 
         for i, t in enumerate(ordered):
-            if t.level_pct <= 0:
-                decisions.append(Decision(t.building_id, "OFF", "sump/tank empty — dry-run protection"))
+            if t.sump_level_pct is not None and t.sump_level_pct <= SUMP_MIN_LEVEL_PCT:
+                decisions.append(Decision(t.building_id, "OFF", "sump nearly empty — dry-run protection"))
                 continue
             if t.level_pct >= OVERFLOW_LEVEL_PCT:
                 decisions.append(Decision(t.building_id, "OFF", "tank full — overflow protection"))

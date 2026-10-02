@@ -7,6 +7,7 @@ dashboard consumes.
 ## Run it
 
 ```bash
+python -m venv .venv && .venv\Scripts\activate   # Windows (source .venv/bin/activate elsewhere)
 pip install -r requirements.txt
 python3 -m app.train_forecast   # trains the LightGBM forecast models (~10s)
 uvicorn app.main:app --reload --port 8000
@@ -27,8 +28,10 @@ all work immediately. Interactive API docs: `http://localhost:8000/docs`.
 
 ```
 app/
-  config.py       thresholds, topics, tunables — start here
-  bus.py          in-memory pub/sub (mimics MQTT); swap for MqttBus later
+  config.py       thresholds, topics, tunables, location — start here
+  clock.py        IST "now" helpers (never use the server's UTC clock for time-of-day logic)
+  bus.py          in-memory pub/sub with MQTT wildcards; MqttBus when VTB_MQTT_URL is set
+  water.py        per-building water demand (CPHEEO 135 LPCD norm, deterministic)
   database.py     SQLite via SQLAlchemy
   models.py       DB tables
   schemas.py      API response shapes
@@ -43,7 +46,15 @@ mock/
   mock_generator.py   fake ESP32 telemetry, until real hardware is ready
 docs/
   api_contract.md     MQTT + REST contract to share with the hardware teammate
+tests/                pytest suite (`python -m pytest -q`)
 ```
+
+## Environment variables
+
+| Var | Effect |
+|---|---|
+| `VTB_MQTT_URL` | e.g. `mqtt://localhost:1883` — use a real broker instead of the in-memory bus (mock auto-disabled) |
+| `VTB_DISABLE_MOCK=1` | don't start the in-process mock telemetry generator |
 
 ## What's real vs mocked today
 

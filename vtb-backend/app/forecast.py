@@ -16,6 +16,8 @@ import os
 import numpy as np
 from datetime import datetime, timedelta
 
+from app.water import water_use_forecast  # noqa: F401  (re-exported for existing callers)
+
 _MODELS_DIR = os.path.join(os.path.dirname(__file__), "models_store")
 _solar_model = None
 _load_model = None
@@ -124,18 +126,3 @@ def is_predicted_dip(now: datetime, lookahead_min: int, threshold_w: float, clou
     """True if solar is forecast to drop below threshold within the lookahead window."""
     points = solar_forecast(now, [lookahead_min], cloud_factor)
     return points[0]["solar_w"] < threshold_w
-
-
-def water_use_forecast(now: datetime, building_id: str, horizons_min: list[int] | None = None) -> list[dict]:
-    """Synthetic per-building draw profile: morning + evening usage spikes,
-    small deterministic per-building offset so buildings don't all draw water
-    at literally the same second (keeps the demo's staggering visible)."""
-    horizons_min = horizons_min or [0, 15, 30, 60]
-    offset = (hash(building_id) % 30) / 60  # 0-0.5 hr per-building phase shift
-    out = []
-    for h in horizons_min:
-        t = now + timedelta(minutes=h)
-        hour_float = t.hour + t.minute / 60 + offset
-        draw = 2.0 * math.exp(-((hour_float - 7.5) ** 2) / 1.5) + 3.0 * math.exp(-((hour_float - 19) ** 2) / 2)
-        out.append({"horizon_min": h, "litres_per_hr": round(max(draw, 0.2), 2)})
-    return out
