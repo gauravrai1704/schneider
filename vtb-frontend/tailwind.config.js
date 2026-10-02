@@ -1,20 +1,29 @@
 /** @type {import('tailwindcss').Config} */
+// Colours are CSS variables (see src/index.css) so light/dark swap in one place.
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
-        bg: { deep: '#0D1420', panel: '#141E2E', raised: '#1B283C' },
-        line: '#263449',
-        text: { primary: '#E8EDF4', dim: '#7C8CA3' },
-        amber: { DEFAULT: '#E8A33D', dim: '#8A6428' },
-        cyan: { DEFAULT: '#4FB8C4', dim: '#2E6F77' },
-        alert: { DEFAULT: '#E15252', dim: '#7A2E2E' },
+        page: 'var(--page)',
+        surface: 'var(--surface)',
+        raised: 'var(--raised)',
+        line: 'var(--line)',
+        ink: {
+          DEFAULT: 'var(--ink)',
+          secondary: 'var(--ink-secondary)',
+          muted: 'var(--ink-muted)',
+        },
+        accent: { DEFAULT: 'var(--accent)', soft: 'var(--accent-soft)' },
+        solar: { DEFAULT: 'var(--solar)', soft: 'var(--solar-soft)' },
+        good: { DEFAULT: 'var(--good)', text: 'var(--good-text)', soft: 'var(--good-soft)' },
+        warning: { DEFAULT: 'var(--warning)', text: 'var(--warning-text)', soft: 'var(--warning-soft)' },
+        critical: { DEFAULT: 'var(--critical)', text: 'var(--critical-text)', soft: 'var(--critical-soft)' },
       },
       fontFamily: {
-        head: ['"Barlow Condensed"', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'monospace'],
+        sans: ['system-ui', '-apple-system', '"Segoe UI"', 'Roboto', 'sans-serif'],
       },
+      borderRadius: { card: '14px' },
     },
   },
   plugins: [],

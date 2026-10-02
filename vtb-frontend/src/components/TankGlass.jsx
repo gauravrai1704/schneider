@@ -1,33 +1,39 @@
-/** A tank rendered like a physical sight-glass gauge: a vertical vessel with
- * a fill level, a safe-minimum tick, and a small amber dot when the pump is
- * actively running. This stands in for a generic progress bar because the
- * subject matter (a literal water tank) has its own real-world gauge form. */
-export default function TankGlass({ id, levelPct = 0, pumpOn = false, safeMinPct = 15 }) {
-  const clamped = Math.max(0, Math.min(100, levelPct))
-  const fillHeight = (clamped / 100) * 84
-  const isLow = clamped < safeMinPct
+import { useTheme } from '../theme'
+
+/** Overhead tank as a sight-glass: water fill, dashed safe-minimum line,
+ * and a small sump gauge underneath. Low water switches to the critical
+ * colour — always paired with a text label by the caller. */
+export default function TankGlass({ levelPct = 0, sumpPct = null, safeMinPct = 15, size = 'md' }) {
+  const { chart } = useTheme()
+  const level = Math.max(0, Math.min(100, levelPct))
+  const isLow = level < safeMinPct
+  const scale = size === 'lg' ? 1.8 : 1
+  const w = 44 * scale, h = 84 * scale
+  const inner = h - 8
+  const fillH = (level / 100) * inner
+  const minY = h - 4 - (safeMinPct / 100) * inner
 
   return (
-    <div className="flex flex-col items-center gap-1 w-16">
-      <svg width="40" height="100" viewBox="0 0 40 100">
-        {/* vessel outline */}
-        <rect x="4" y="8" width="32" height="88" rx="3" fill="none" stroke="#263449" strokeWidth="2" />
-        {/* safe-minimum tick */}
-        <line x1="2" y1={96 - (safeMinPct / 100) * 84} x2="8" y2={96 - (safeMinPct / 100) * 84}
-              stroke="#E15252" strokeWidth="1.5" />
-        {/* fill */}
+    <div className="flex flex-col items-center gap-1.5">
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`Tank ${level.toFixed(0)} percent full`}>
+        <rect x="1" y="1" width={w - 2} height={h - 2} rx={6 * scale} fill={chart.waterTrack} opacity="0.55" stroke={chart.axis} />
         <rect
-          x="6" y={94 - fillHeight} width="28" height={fillHeight} rx="1.5"
-          fill={isLow ? '#E15252' : '#4FB8C4'}
-          opacity="0.85"
+          x="4" y={h - 4 - fillH} width={w - 8} height={fillH} rx={4 * scale}
+          fill={isLow ? chart.low : chart.waterFill}
+          style={{ transition: 'y 500ms ease, height 500ms ease' }}
         />
-        {/* pump indicator */}
-        <circle cx="20" cy="4" r="3.5" fill={pumpOn ? '#E8A33D' : '#263449'} />
+        <line x1="2" x2={w - 2} y1={minY} y2={minY} stroke={chart.low} strokeWidth="1.5" strokeDasharray="3 3" />
       </svg>
-      <span className="text-[10px] text-text-dim font-mono leading-none">{id.replace('tank-', 'T')}</span>
-      <span className="text-[10px] font-mono leading-none" style={{ color: isLow ? '#E15252' : '#E8EDF4' }}>
-        {clamped.toFixed(0)}%
-      </span>
+      {sumpPct !== null && sumpPct !== undefined && (
+        <div className="w-full" title={`Sump ${sumpPct.toFixed(0)}%`}>
+          <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: chart.waterTrack }}>
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${Math.max(0, Math.min(100, sumpPct))}%`, background: sumpPct < 10 ? chart.low : chart.baseline, transition: 'width 500ms ease' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,105 +1,164 @@
-import { useEffect, useState } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getForecast, getFeederSoc, postPause, useLiveFeed } from '../api'
+import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { getFeederSoc, getForecast, getSources, postPause, useLiveFeed, usePoll } from '../api'
+import { clockLabel, fmt, loadSourceLabel, pumpStatus, solarSourceLabel, tankName } from '../format'
+import { useTheme } from '../theme'
+import { IconBolt, IconDrop, IconSun } from './icons'
+import DataSources from './DataSources'
+import PumpPauseButton from './PumpPauseButton'
 import SocGauge from './SocGauge'
 import TankGlass from './TankGlass'
-import PumpPauseButton from './PumpPauseButton'
-import ImpactCounters from './ImpactCounters'
+import { Banner, Card, ChartTooltip, LegendKey, StatTile, StatusChip } from './ui'
+
+const FORECAST_HORIZONS = '0,30,60,90,120,150,180,210,240,270,300,330,360'
+const SAFE_MIN = 15
 
 export default function DiscomView() {
-  const { connected, tanksById, solar, paused, lastCommands } = useLiveFeed()
-  const [forecast, setForecast] = useState([])
-  const [soc, setSoc] = useState({ soc_kwh: 0, soc_pct_of_max: 0, tanks_reporting: 0 })
-  const [solarHistory, setSolarHistory] = useState([])
-  const [kwhShifted, setKwhShifted] = useState(0)
+  const { chart } = useTheme()
+  const { tanksById, commandsById, solar, solarHistory, paused, setPaused } = useLiveFeed()
+  const { data: soc } = usePoll(getFeederSoc, 5000)
+  const { data: forecast } = usePoll(() => getForecast(FORECAST_HORIZONS), 30000)
+  const { data: sources } = usePoll(getSources, 30000)
 
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        setForecast(await getForecast())
-        setSoc(await getFeederSoc())
-      } catch (e) { /* backend not up yet — panels just show last-known values */ }
-    }
-    poll()
-    const t = setInterval(poll, 5000)
-    return () => clearInterval(t)
-  }, [])
+  const tanks = Object.values(tanksById).sort((a, b) => a.building_id.localeCompare(b.building_id))
+  const pumping = tanks.filter((t) => pumpStatus(t, commandsById[t.building_id], paused).label === 'Pumping').length
+  const low = tanks.filter((t) => t.level_pct < SAFE_MIN).length
+  const now = forecast?.[0]
+  const clearness = sources?.panel_clearness
+  const t0 = Date.now()
+  const forecastData = (forecast || []).map((f) => ({ ...f, ts: t0 + f.horizon_min * 60000 }))
 
-  useEffect(() => {
-    if (!solar) return
-    setSolarHistory((prev) => [...prev.slice(-40), { t: new Date(solar.ts).toLocaleTimeString(), w: solar.solar_w }])
-  }, [solar])
-
-  useEffect(() => {
-    const onCount = lastCommands.filter((c) => c.action === 'ON').length
-    if (onCount > 0) setKwhShifted((prev) => prev + (onCount * 40 * 2) / 3600 / 1000 * 1000) // rough live accrual, matches sim's 40W pump assumption
-  }, [lastCommands])
-
-  const tanks = Object.values(tanksById)
+  const togglePause = async (active) => {
+    await postPause(active)
+    setPaused(active)
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-head text-2xl text-text-primary tracking-wide">Feeder-1 grid console</h1>
-        <span className={`font-mono text-xs px-2 py-1 rounded ${connected ? 'text-cyan' : 'text-alert'}`}>
-          {connected ? '● live' : '○ reconnecting'}
-        </span>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold text-ink">Feeder 1 · Delhi</h1>
+          <p className="text-sm text-ink-muted">Pumping load the grid can shift right now, and what's coming in the next 6 hours.</p>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-4">
-        <div className="panel px-6 py-4 flex items-center justify-center">
-          <SocGauge socKwh={soc.soc_kwh} socPct={soc.soc_pct_of_max} />
-        </div>
-        <div className="flex-1 min-w-[280px]">
-          <ImpactCounters
-            kwhShifted={soc.soc_kwh > 0 ? kwhShifted : 0}
-            peakReductionPct={0}
-            tanksReporting={soc.tanks_reporting}
+      {paused && (
+        <Banner tone="critical" title="Demand response active — all pumps paused">
+          Water supply stays protected by each building's local safety rules. Resume when the grid recovers.
+        </Banner>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card title="Virtual battery — State of Charge" subtitle="Pumping energy that can be shifted on this feeder">
+          <div className="flex flex-col items-center gap-4">
+            <SocGauge socKwh={soc?.soc_kwh ?? 0} socPct={soc?.soc_pct_of_max ?? 0} />
+            <PumpPauseButton paused={paused} onToggle={togglePause} />
+            <p className="text-center text-xs text-ink-muted">
+              Instantly sheds about {fmt(pumping * 40)} W of pump load across {tanks.length} buildings.
+            </p>
+          </div>
+        </Card>
+
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
+          <StatTile
+            label="Solar output now" icon={<IconSun width={14} height={14} />} accent="text-solar"
+            value={fmt(solar?.solar_w)} unit={solar ? 'W' : undefined}
+            hint={clearness == null ? (solar?.solar_w > 0 ? 'Low sun — dawn or dusk' : 'Sun is down or no panel reading') : clearness >= 0.95 ? 'Clear sky — full output' : `${fmt(clearness * 100)}% of clear-sky output (clouds)`}
           />
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="panel p-4">
-          <div className="panel-label text-xs mb-2">Solar — live vs 60min forecast</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={solarHistory}>
-              <CartesianGrid stroke="#263449" strokeDasharray="3 3" />
-              <XAxis dataKey="t" tick={{ fill: '#7C8CA3', fontSize: 10 }} />
-              <YAxis tick={{ fill: '#7C8CA3', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: '#141E2E', border: '1px solid #263449' }} />
-              <Line type="monotone" dataKey="w" stroke="#E8A33D" dot={false} strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="panel p-4">
-          <div className="panel-label text-xs mb-2">Forecast — next 60 minutes</div>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={forecast.map((f) => ({ ...f, label: `+${f.horizon_min}m` }))}>
-              <CartesianGrid stroke="#263449" strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fill: '#7C8CA3', fontSize: 10 }} />
-              <YAxis tick={{ fill: '#7C8CA3', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: '#141E2E', border: '1px solid #263449' }} />
-              <Line type="monotone" dataKey="solar_w" name="solar (W)" stroke="#E8A33D" dot={false} strokeWidth={2} />
-              <Line type="monotone" dataKey="feeder_load_w" name="load (W)" stroke="#4FB8C4" dot={false} strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="panel p-4 flex flex-wrap items-center gap-6">
-        <div className="flex-1 min-w-[240px]">
-          <div className="panel-label text-xs mb-3">Live tank grid</div>
-          <div className="flex flex-wrap gap-3">
-            {tanks.length === 0 && <span className="text-text-dim text-sm">waiting for telemetry…</span>}
-            {tanks.map((t) => (
-              <TankGlass key={t.building_id} id={t.building_id} levelPct={t.level_pct} pumpOn={t.pump_on} />
-            ))}
+          <StatTile
+            label="Feeder load now" icon={<IconBolt width={14} height={14} />} accent="text-accent"
+            value={fmt(now?.feeder_load_w)} unit="W"
+            hint={now?.discom_load_mw != null ? `Real BYPL demand: ${fmt(now.discom_load_mw)} MW` : 'Waiting for forecast…'}
+          />
+          <StatTile
+            label="Pumps running" icon={<IconDrop width={14} height={14} />} accent="text-accent"
+            value={`${pumping} / ${tanks.length}`}
+            hint="Starts are staggered to protect feeder voltage"
+          />
+          <div className="card flex min-w-0 flex-col gap-1 p-4">
+            <div className="text-xs text-ink-muted">Water safety</div>
+            <div className="text-2xl font-semibold text-ink">{tanks.length === 0 ? '—' : low === 0 ? 'All safe' : `${low} low`}</div>
+            <div>
+              {tanks.length === 0 ? <StatusChip tone="neutral">Waiting for tanks</StatusChip> : low === 0
+                ? <StatusChip tone="good">Every tank above {SAFE_MIN}%</StatusChip>
+                : <StatusChip tone="critical">{low} tank{low > 1 ? 's' : ''} below {SAFE_MIN}%</StatusChip>}
+            </div>
           </div>
         </div>
-        <PumpPauseButton paused={paused} onToggle={postPause} />
       </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card
+          className="lg:col-span-2"
+          title="Next 6 hours — solar supply vs feeder load"
+          subtitle={now ? `ML forecast · solar from ${solarSourceLabel(now.solar_source)} · load from ${loadSourceLabel(now.load_source)}` : 'Loading forecast…'}
+          right={<div className="flex gap-3"><LegendKey color={chart.solar} label="Solar" /><LegendKey color={chart.load} label="Load" /></div>}
+        >
+          <ResponsiveContainer width="100%" height={240}>
+            <ComposedChart data={forecastData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+              <CartesianGrid stroke={chart.grid} vertical={false} />
+              <XAxis dataKey="ts" type="number" domain={['dataMin', 'dataMax']} scale="time"
+                     tickFormatter={clockLabel} tick={{ fill: chart.tick, fontSize: 11 }} stroke={chart.axis} tickLine={false} />
+              <YAxis tick={{ fill: chart.tick, fontSize: 11 }} stroke={chart.axis} tickLine={false} axisLine={false}
+                     tickFormatter={(v) => fmt(v)} width={52} />
+              <Tooltip content={<ChartTooltip labelFormatter={clockLabel} />} cursor={{ stroke: chart.axis }} />
+              <Area type="monotone" dataKey="solar_w" name="Solar" stroke={chart.solar} strokeWidth={2}
+                    fill={chart.solar} fillOpacity={0.1} dot={false} activeDot={{ r: 4, stroke: chart.surface, strokeWidth: 2 }} />
+              <Line type="monotone" dataKey="feeder_load_w" name="Load" stroke={chart.load} strokeWidth={2}
+                    dot={false} activeDot={{ r: 4, stroke: chart.surface, strokeWidth: 2 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card title="Solar panel — live" subtitle="Last few minutes, one reading every 2 s">
+          <ResponsiveContainer width="100%" height={240}>
+            <ComposedChart data={solarHistory} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+              <CartesianGrid stroke={chart.grid} vertical={false} />
+              <XAxis dataKey="ts" type="number" domain={['dataMin', 'dataMax']} scale="time"
+                     tickFormatter={(ms) => new Date(ms).toLocaleTimeString('en-IN', { hour12: false })}
+                     tick={{ fill: chart.tick, fontSize: 11 }} stroke={chart.axis} tickLine={false} minTickGap={40} />
+              <YAxis tick={{ fill: chart.tick, fontSize: 11 }} stroke={chart.axis} tickLine={false} axisLine={false} width={44} />
+              <Tooltip content={<ChartTooltip labelFormatter={(ms) => new Date(ms).toLocaleTimeString('en-IN')} />} cursor={{ stroke: chart.axis }} />
+              <Area type="monotone" dataKey="w" name="Solar" stroke={chart.solar} strokeWidth={2} fill={chart.solar}
+                    fillOpacity={0.1} dot={false} isAnimationActive={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
+
+      <Card
+        title="Buildings on this feeder"
+        subtitle="Overhead tank level (dashed line = safe minimum) · bar underneath = ground sump"
+      >
+        {tanks.length === 0 ? (
+          <p className="py-6 text-center text-sm text-ink-muted">Waiting for tank telemetry…</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {tanks.map((t) => {
+              const st = pumpStatus(t, commandsById[t.building_id], paused)
+              return (
+                <div key={t.building_id} className="flex gap-3 rounded-xl border border-line bg-raised p-3">
+                  <div className="w-11 shrink-0">
+                    <TankGlass levelPct={t.level_pct} sumpPct={t.sump_level_pct} safeMinPct={SAFE_MIN} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-ink">{tankName(t.building_id)}</span>
+                      <span className="num text-sm font-semibold text-ink">{fmt(t.level_pct)}%</span>
+                    </div>
+                    <div className="num text-xs text-ink-muted">
+                      Sump {t.sump_level_pct != null ? `${fmt(t.sump_level_pct)}%` : '—'}
+                    </div>
+                    <div className="mt-2"><StatusChip tone={st.tone}>{st.label}</StatusChip></div>
+                    <p className="mt-1 line-clamp-2 text-xs text-ink-secondary" title={st.reason}>{st.reason}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
+      <DataSources sources={sources} />
     </div>
   )
 }
