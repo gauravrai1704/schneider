@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
+import logging
 import os
-from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
@@ -11,16 +11,19 @@ from sqlalchemy import desc
 
 from app.database import Base, engine, get_db, SessionLocal
 from app import models, schemas, config
-from app.bus import bus
-from app.forecast import combined_forecast
+from app.bus import bus, MqttBus
+from app.clock import now_ist
+from app.forecast import combined_forecast, model_info, panel_clearness
+from app import live_data
 from app.scheduler import Scheduler, TankSnapshot
 from app.simulator import run_simulation
 
 Base.metadata.create_all(bind=engine)
 
+log = logging.getLogger("vtb")
 scheduler = Scheduler()
 _ws_clients: set[WebSocket] = set()
-_latest_cloud_factor = 1.0
+_latest_cloud_factor: float | None = None   # panel clearness index; None = unknown/night
 
 
 async def _broadcast(payload: dict):
@@ -37,6 +40,16 @@ async def _broadcast(payload: dict):
 async def on_tank_telemetry(topic: str, payload: dict):
     """Handles vtb/tank/{id}/telemetry from a real or mock ESP32."""
     building_id = topic.split("/")[2]
+    try:
+        level_pct = float(payload["level_pct"])
+        pump_on = bool(payload["pump_on"])
+        pump_w = float(payload.get("pump_w", 0.0))
+        sump = payload.get("sump_level_pct")
+        sump = float(sump) if sump is not None else None
+    except (KeyError, TypeError, ValueError):
+        log.warning("bad telemetry on %s: %r", topic, payload)
+        return
+
     db: Session = SessionLocal()
     try:
         if not db.get(models.Building, building_id):
@@ -44,9 +57,10 @@ async def on_tank_telemetry(topic: str, payload: dict):
             db.commit()
         db.add(models.TankTelemetry(
             building_id=building_id,
-            level_pct=payload["level_pct"],
-            pump_on=payload["pump_on"],
-            pump_w=payload["pump_w"],
+            level_pct=level_pct,
+            pump_on=pump_on,
+            pump_w=pump_w,
+            sump_level_pct=sump,
         ))
         db.commit()
     finally:
@@ -65,10 +79,7 @@ async def on_solar_telemetry(topic: str, payload: dict):
     finally:
         db.close()
 
-    from app.forecast import _solar_curve_w
-    now = datetime.now(timezone.utc)
-    clear_sky = _solar_curve_w(now.hour + now.minute / 60) or 1.0
-    _latest_cloud_factor = max(0.05, min(1.5, payload["solar_w"] / clear_sky))
+    _latest_cloud_factor = panel_clearness(float(payload["solar_w"]), now_ist())
 
     await _broadcast({"type": "solar_telemetry", **payload})
 
@@ -89,10 +100,10 @@ async def _run_scheduler_tick():
         latest_solar = db.query(models.SolarTelemetry).order_by(desc(models.SolarTelemetry.ts)).first()
         solar_w = latest_solar.solar_w if latest_solar else 0.0
 
-        tanks = [TankSnapshot(bid, row.level_pct) for bid, row in latest_by_building.items()]
+        tanks = [TankSnapshot(bid, row.level_pct, row.sump_level_pct) for bid, row in latest_by_building.items()]
         if not tanks:
             return
-        decisions = scheduler.decide(tanks, solar_w, datetime.now(timezone.utc), _latest_cloud_factor)
+        decisions = scheduler.decide(tanks, solar_w, now_ist(), _latest_cloud_factor)
 
         for d in decisions:
             db.add(models.PumpCommand(building_id=d.building_id, action=d.action, reason=d.reason))
@@ -112,20 +123,17 @@ async def _run_scheduler_tick():
 async def lifespan(app: FastAPI):
     bus.subscribe(config.TOPIC_SOLAR_TELEMETRY, on_solar_telemetry)
     bus.subscribe(config.TOPIC_DISCOM_PAUSE, on_discom_pause)
-    # Per-building telemetry topics are subscribed to lazily as buildings appear;
-    # for the mock/demo set we subscribe to a known pool up front.
-    for i in range(1, 21):
-        bid = f"tank-{i:02d}"
-        bus.subscribe(config.TOPIC_TANK_TELEMETRY.format(id=bid), on_tank_telemetry)
-    for i in range(20):
-        bid = f"sim-{i:04d}"
-        bus.subscribe(config.TOPIC_TANK_TELEMETRY.format(id=bid), on_tank_telemetry)
+    # One wildcard subscription covers every tank, whatever id the firmware uses.
+    bus.subscribe(config.TOPIC_TANK_TELEMETRY.format(id="+"), on_tank_telemetry)
+
+    if isinstance(bus, MqttBus):
+        bus.start(asyncio.get_running_loop())
 
     mock_task = None
     if config.MQTT_BROKER_URL is None and os.environ.get("VTB_DISABLE_MOCK") != "1":
-        # No real broker configured yet -> run the mock generator in-process so it
-        # shares this exact Bus instance. Once hardware is ready, either set
-        # MQTT_BROKER_URL or export VTB_DISABLE_MOCK=1 to turn this off.
+        # No real broker configured -> run the mock generator in-process so it
+        # shares this exact Bus instance. Set VTB_MQTT_URL or VTB_DISABLE_MOCK=1
+        # to turn this off.
         from mock.mock_generator import main as mock_main
         mock_task = asyncio.create_task(mock_main())
 
@@ -133,6 +141,8 @@ async def lifespan(app: FastAPI):
 
     if mock_task:
         mock_task.cancel()
+    if isinstance(bus, MqttBus):
+        bus.stop()
 
 
 app = FastAPI(title="Virtual Tank Battery API", lifespan=lifespan)
@@ -144,6 +154,15 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/sources")
+def sources():
+    """Which data path is live right now, plus the trained models' held-out
+    accuracy vs baselines — so every number on the dashboard is traceable."""
+    return {"location": {"city": config.CITY, "lat": config.LATITUDE, "lon": config.LONGITUDE},
+            "feeds": live_data.status(), "models": model_info(),
+            "panel_clearness": _latest_cloud_factor}
 
 
 @app.get("/tanks", response_model=list[schemas.TankState])
@@ -176,7 +195,7 @@ def feeder_soc(feeder_id: str = "feeder-1", db: Session = Depends(get_db)):
 @app.get("/forecast", response_model=list[schemas.ForecastPoint])
 def forecast(horizons: str = "0,15,30,60"):
     horizons_min = [int(h) for h in horizons.split(",")]
-    now = datetime.now(timezone.utc)
+    now = now_ist()
     return combined_forecast(now, horizons_min, _latest_cloud_factor)
 
 

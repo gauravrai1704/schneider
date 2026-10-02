@@ -7,8 +7,10 @@ from __future__ import annotations
 import random
 from datetime import datetime, timedelta
 
-from app.config import SIM_TIMESTEP_MIN, ENERGY_PER_LITRE_WH
-from app.forecast import _solar_curve_w, water_use_forecast
+from app.clock import now_ist, to_ist
+from app.config import SIM_TIMESTEP_MIN, TANK_CAPACITY_LITRES
+from app.forecast import clear_sky_w
+from app.water import draw_litres_per_hr
 from app.scheduler import Scheduler, TankSnapshot
 
 
@@ -17,7 +19,8 @@ def _building_ids(n: int) -> list[str]:
 
 
 def run_simulation(n_buildings: int, day: datetime | None = None, cloudy_day: bool = False) -> dict:
-    day = day or datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    day = to_ist(day) if day else now_ist()
+    day = day.replace(hour=0, minute=0, second=0, microsecond=0)
     ids = _building_ids(n_buildings)
     levels = {bid: random.uniform(30, 70) for bid in ids}
     scheduler = Scheduler()
@@ -31,15 +34,15 @@ def run_simulation(n_buildings: int, day: datetime | None = None, cloudy_day: bo
         t = day + timedelta(minutes=step * SIM_TIMESTEP_MIN)
         hour_float = t.hour + t.minute / 60
         cloud_factor = 0.3 if (cloudy_day and 10 <= hour_float <= 15) else 1.0
-        solar_w = _solar_curve_w(hour_float) * cloud_factor
+        solar_w = clear_sky_w(t) * cloud_factor
 
         tanks = [TankSnapshot(bid, levels[bid]) for bid in ids]
         decisions = scheduler.decide(tanks, solar_w, t, cloud_factor)
 
         n_on = 0
         for d in decisions:
-            draw = water_use_forecast(t, d.building_id, [0])[0]["litres_per_hr"] * (SIM_TIMESTEP_MIN / 60)
-            levels[d.building_id] = max(0.0, levels[d.building_id] - draw * 0.5)  # usage drains tank
+            draw_l = draw_litres_per_hr(t, d.building_id) * (SIM_TIMESTEP_MIN / 60)
+            levels[d.building_id] = max(0.0, levels[d.building_id] - 100 * draw_l / TANK_CAPACITY_LITRES)
             if d.action == "ON":
                 n_on += 1
                 fill_rate_pct_per_tick = 3.0

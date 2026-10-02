@@ -27,6 +27,7 @@ class TankTelemetry(Base):
     level_pct = Column(Float)
     pump_on = Column(Boolean)
     pump_w = Column(Float)
+    sump_level_pct = Column(Float, nullable=True)   # optional until firmware reports it
     ts = Column(DateTime, default=now)
 
     building = relationship("Building", back_populates="telemetry")

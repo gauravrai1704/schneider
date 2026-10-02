@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
@@ -7,10 +7,10 @@ class TankState(BaseModel):
     level_pct: float
     pump_on: bool
     pump_w: float
+    sump_level_pct: float | None = None
     ts: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SolarState(BaseModel):
@@ -18,14 +18,16 @@ class SolarState(BaseModel):
     lux: float
     ts: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ForecastPoint(BaseModel):
     horizon_min: int
     solar_w: float
     feeder_load_w: float
+    discom_load_mw: float | None = None   # real DISCOM load behind the scaled feeder figure
+    solar_source: str = "heuristic"
+    load_source: str = "heuristic"
 
 
 class FeederSoC(BaseModel):
