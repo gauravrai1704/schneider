@@ -2,6 +2,7 @@ import os
 import time
 
 os.environ["VTB_DISABLE_MOCK"] = "0"
+os.environ["VTB_OFFLINE"] = "1"   # no network in tests
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
@@ -16,4 +17,7 @@ def test_live_loop_with_mock_telemetry():
         assert all(t["sump_level_pct"] is not None for t in tanks)
         soc = client.get("/feeder/soc").json()
         assert soc["tanks_reporting"] >= 8
-        assert len(client.get("/forecast").json()) == 4
+        fc = client.get("/forecast").json()
+        assert len(fc) == 4 and {"solar_source", "load_source"} <= fc[0].keys()
+        src = client.get("/sources").json()
+        assert src["feeds"]["offline_mode"] is True and "models" in src

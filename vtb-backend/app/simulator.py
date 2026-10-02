@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from app.clock import now_ist, to_ist
 from app.config import SIM_TIMESTEP_MIN, TANK_CAPACITY_LITRES
-from app.forecast import _solar_curve_w
+from app.forecast import clear_sky_w
 from app.water import draw_litres_per_hr
 from app.scheduler import Scheduler, TankSnapshot
 
@@ -34,7 +34,7 @@ def run_simulation(n_buildings: int, day: datetime | None = None, cloudy_day: bo
         t = day + timedelta(minutes=step * SIM_TIMESTEP_MIN)
         hour_float = t.hour + t.minute / 60
         cloud_factor = 0.3 if (cloudy_day and 10 <= hour_float <= 15) else 1.0
-        solar_w = _solar_curve_w(hour_float) * cloud_factor
+        solar_w = clear_sky_w(t) * cloud_factor
 
         tanks = [TankSnapshot(bid, levels[bid]) for bid in ids]
         decisions = scheduler.decide(tanks, solar_w, t, cloud_factor)

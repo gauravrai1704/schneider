@@ -10,6 +10,10 @@ IST = timezone(timedelta(hours=5, minutes=30), name="IST")
 CITY = "Delhi"
 LATITUDE = 28.61
 LONGITUDE = 77.21
+# Delhi SLDC column used as "our" feeder's load shape. BYPL (BSES Yamuna) serves
+# dense east/central Delhi — the kind of feeder that browns out first.
+# Other columns on the SLDC page: DELHI (state total), BRPL, NDPL (TPDDL), NDMC, MES.
+LOAD_DISCOM = "BYPL"
 
 # --- Tank / safety ---
 SAFE_MIN_LEVEL_PCT = 15.0        # never let a tank drop below this
@@ -28,6 +32,12 @@ STAGGER_DELAY_SEC = 3            # min delay between two pumps starting
 SOLAR_SURPLUS_THRESHOLD_W = 150  # above this, treat as "green hour"
 FORECAST_DIP_LOOKAHEAD_MIN = 60  # how far ahead we check for a predicted solar dip
 
+# --- Demo scaling ---
+# Real data drives the *shape* of the solar and load curves; these set the demo
+# magnitude so numbers stay comparable with the physical model's dashboard.
+SOLAR_PEAK_W = 600.0             # panel output at 1000 W/m² irradiance
+FEEDER_PEAK_W = 1200.0           # feeder load at the DISCOM's historical peak
+
 # --- Simulation ---
 DEFAULT_SIM_BUILDINGS = 300
 SIM_TIMESTEP_MIN = 5
@@ -43,3 +53,16 @@ TOPIC_DISCOM_PAUSE = "vtb/discom/pause"            # dashboard -> all
 # (app/bus.py) so backend + dashboard work end-to-end with zero external dependencies.
 MQTT_BROKER_URL = os.environ.get("VTB_MQTT_URL") or None
 
+# --- External data (all public, no API key) ---
+OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_HISTORICAL_FORECAST_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"
+NASA_POWER_HOURLY_URL = "https://power.larc.nasa.gov/api/temporal/hourly/point"
+DELHI_SLDC_LOAD_URL = "https://www.delhisldc.org/Loaddata.aspx"
+WEATHER_REFRESH_SEC = 15 * 60
+GRID_REFRESH_SEC = 5 * 60
+# Training window: NASA POWER hourly lags ~3 months, so a full year ending mid-2026.
+TRAIN_START = "2025-07-01"
+TRAIN_END = "2026-06-29"
+# Set VTB_OFFLINE=1 to skip all live fetches (e.g. no venue wifi); forecasts
+# fall back to the last cached data, then to ML-without-weather, then heuristics.
+OFFLINE = os.environ.get("VTB_OFFLINE") == "1"

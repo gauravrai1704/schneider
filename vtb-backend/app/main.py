@@ -13,7 +13,8 @@ from app.database import Base, engine, get_db, SessionLocal
 from app import models, schemas, config
 from app.bus import bus, MqttBus
 from app.clock import now_ist
-from app.forecast import combined_forecast
+from app.forecast import combined_forecast, model_info, panel_clearness
+from app import live_data
 from app.scheduler import Scheduler, TankSnapshot
 from app.simulator import run_simulation
 
@@ -22,7 +23,7 @@ Base.metadata.create_all(bind=engine)
 log = logging.getLogger("vtb")
 scheduler = Scheduler()
 _ws_clients: set[WebSocket] = set()
-_latest_cloud_factor = 1.0
+_latest_cloud_factor: float | None = None   # panel clearness index; None = unknown/night
 
 
 async def _broadcast(payload: dict):
@@ -78,10 +79,7 @@ async def on_solar_telemetry(topic: str, payload: dict):
     finally:
         db.close()
 
-    from app.forecast import _solar_curve_w
-    now = now_ist()
-    clear_sky = _solar_curve_w(now.hour + now.minute / 60) or 1.0
-    _latest_cloud_factor = max(0.05, min(1.5, payload["solar_w"] / clear_sky))
+    _latest_cloud_factor = panel_clearness(float(payload["solar_w"]), now_ist())
 
     await _broadcast({"type": "solar_telemetry", **payload})
 
@@ -156,6 +154,15 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/sources")
+def sources():
+    """Which data path is live right now, plus the trained models' held-out
+    accuracy vs baselines — so every number on the dashboard is traceable."""
+    return {"location": {"city": config.CITY, "lat": config.LATITUDE, "lon": config.LONGITUDE},
+            "feeds": live_data.status(), "models": model_info(),
+            "panel_clearness": _latest_cloud_factor}
 
 
 @app.get("/tanks", response_model=list[schemas.TankState])

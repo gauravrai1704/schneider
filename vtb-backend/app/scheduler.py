@@ -50,7 +50,7 @@ class Scheduler:
         tanks: list[TankSnapshot],
         solar_w: float,
         now: datetime,
-        cloud_factor: float = 1.0,
+        cloud_factor: float | None = None,   # panel clearness index; None = unknown
     ) -> list[Decision]:
         decisions: list[Decision] = []
 

@@ -25,7 +25,8 @@ change without updating both sides.
 | `/health` | GET | `{"status": "ok"}` |
 | `/tanks` | GET | Latest telemetry per tank |
 | `/feeder/soc?feeder_id=feeder-1` | GET | `{feeder_id, soc_kwh, soc_pct_of_max, tanks_reporting}` |
-| `/forecast?horizons=0,15,30,60` | GET | List of `{horizon_min, solar_w, feeder_load_w}` |
+| `/forecast?horizons=0,15,30,60` | GET | List of `{horizon_min, solar_w, feeder_load_w, discom_load_mw, solar_source, load_source}` |
+| `/sources` | GET | Live feed health, which models are active, their held-out accuracy |
 | `/loadcurve` | GET | Last 200 pump commands (building_id, action, reason, ts) |
 | `/pause` | POST | Body `{"active": true/false}` — publishes `vtb/discom/pause` |
 | `/simulate?n_buildings=300&cloudy_day=false` | GET | `{n_buildings, peak_reduction_pct, kwh_shifted, curve}` |

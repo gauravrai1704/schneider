@@ -25,6 +25,9 @@ class ForecastPoint(BaseModel):
     horizon_min: int
     solar_w: float
     feeder_load_w: float
+    discom_load_mw: float | None = None   # real DISCOM load behind the scaled feeder figure
+    solar_source: str = "heuristic"
+    load_source: str = "heuristic"
 
 
 class FeederSoC(BaseModel):

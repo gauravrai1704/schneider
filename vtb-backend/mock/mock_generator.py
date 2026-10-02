@@ -14,7 +14,7 @@ import random
 from app.bus import bus
 from app import config
 from app.clock import hour_float, now_ist
-from app.forecast import _solar_curve_w
+from app.forecast import current_sky_w
 from app.water import draw_litres_per_hr
 
 N_TANKS = 8
@@ -42,8 +42,9 @@ def _sump_inflow_pct(h: float) -> float:
 async def _tick():
     now = now_ist()
     h = hour_float(now)
-    clear_sky = _solar_curve_w(h)
-    solar_w = clear_sky * (0.15 if _cloud_override["active"] else random.uniform(0.85, 1.0))
+    # Follows the real sky over Delhi right now (live Open-Meteo irradiance), with sensor noise
+    sky_w = current_sky_w(now)
+    solar_w = sky_w * (0.15 if _cloud_override["active"] else random.uniform(0.95, 1.05))
 
     await bus.publish(config.TOPIC_SOLAR_TELEMETRY, {
         "solar_w": round(solar_w, 1),

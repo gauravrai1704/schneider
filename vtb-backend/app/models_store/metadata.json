@@ -1,21 +1,140 @@
 {
+  "location": {
+    "city": "Delhi",
+    "lat": 28.61,
+    "lon": 77.21
+  },
+  "train_window": [
+    "2025-07-01",
+    "2026-06-29"
+  ],
+  "sources": {
+    "solar": "NASA POWER hourly ALLSKY_SFC_SW_DWN",
+    "weather": "Open-Meteo Historical Forecast API (archived forecasts)",
+    "load": "Delhi SLDC 5-min load, BYPL column"
+  },
   "solar": {
     "features": [
-      "hour_sin",
-      "hour_cos",
-      "day_of_week",
       "horizon_min",
-      "recent_cloud_factor"
+      "tgt_hour_sin",
+      "tgt_hour_cos",
+      "doy_sin",
+      "doy_cos",
+      "cs_tgt",
+      "nwp_k_tgt",
+      "cloud_tgt",
+      "k_now",
+      "nwp_k_now",
+      "k_prev"
     ],
-    "mae": 0.06468742316908631
+    "horizons_min": [
+      60,
+      120,
+      180,
+      240,
+      300,
+      360
+    ],
+    "metrics": {
+      "unit": "W/m\u00b2 MAE on daylight hours, held-out weeks",
+      "ml_with_live_panel": 45.92224408552783,
+      "ml_weather_only": 64.94115720244632,
+      "baseline_persistence": 72.21667328597216,
+      "baseline_raw_open_meteo": 70.6234328358209,
+      "by_horizon_min": {
+        "60": {
+          "ml": 30.983797637196066,
+          "ml_weather_only": 63.080872145539516,
+          "persistence": 34.13881453720275,
+          "open_meteo": 68.94059071729957
+        },
+        "120": {
+          "ml": 40.787694835659146,
+          "ml_weather_only": 66.78915074943447,
+          "persistence": 59.66500515490047,
+          "open_meteo": 72.50258970358814
+        },
+        "180": {
+          "ml": 49.56423398109939,
+          "ml_weather_only": 68.23967200897512,
+          "persistence": 79.88340918584844,
+          "open_meteo": 73.86581436077059
+        },
+        "240": {
+          "ml": 54.83422528404724,
+          "ml_weather_only": 68.13376244954817,
+          "persistence": 93.17629352034601,
+          "open_meteo": 73.13379241516967
+        },
+        "300": {
+          "ml": 56.645365018925524,
+          "ml_weather_only": 64.52868961698302,
+          "persistence": 99.36621946540791,
+          "open_meteo": 69.87812064965198
+        },
+        "360": {
+          "ml": 53.52982735645778,
+          "ml_weather_only": 56.1680966978759,
+          "persistence": 95.8705417147936,
+          "open_meteo": 62.878559556786705
+        }
+      },
+      "n_train": 19743,
+      "n_test": 3216
+    }
   },
   "load": {
     "features": [
-      "hour_sin",
-      "hour_cos",
-      "day_of_week",
-      "is_weekend"
+      "horizon_min",
+      "tgt_hour_sin",
+      "tgt_hour_cos",
+      "dow",
+      "is_weekend",
+      "is_holiday",
+      "doy_sin",
+      "doy_cos",
+      "temp_tgt",
+      "rh_tgt",
+      "load_now",
+      "load_yday",
+      "load_week"
     ],
-    "mae": 37.00284303568592
+    "horizons_min": [
+      15,
+      30,
+      60,
+      120,
+      180,
+      240,
+      300,
+      360
+    ],
+    "discom": "BYPL",
+    "peak_mw": 1799.12897,
+    "metrics": {
+      "unit": "BYPL MW, held-out weeks",
+      "ml_with_live_sldc": {
+        "mae": 51.85439289985983,
+        "mape_pct": 5.818704124212754
+      },
+      "ml_weather_calendar_only": {
+        "mae": 73.13475864846825,
+        "mape_pct": 8.050287167419365
+      },
+      "baseline_persistence": {
+        "mae": 98.1017506247814,
+        "mape_pct": 12.25650024393796
+      },
+      "baseline_same_time_yesterday": {
+        "mae": 65.24465681377028,
+        "mape_pct": 7.062713295845158
+      },
+      "baseline_same_time_last_week": {
+        "mae": 108.54186951431532,
+        "mape_pct": 11.342769525276589
+      },
+      "n_train": 224073,
+      "n_test": 53456
+    }
   }
 }
