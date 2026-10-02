@@ -1,6 +1,6 @@
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { getFeederSoc, getForecast, getSources, postPause, useLiveFeed, usePoll } from '../api'
-import { clockLabel, fmt, loadSourceLabel, pumpStatus, solarSourceLabel, tankName } from '../format'
+import { clockLabel, fmt, fmtDuration, loadSourceLabel, pumpStatus, solarSourceLabel, tankName } from '../format'
 import { useTheme } from '../theme'
 import { IconBolt, IconDrop, IconSun } from './icons'
 import DataSources from './DataSources'
@@ -53,7 +53,11 @@ export default function DiscomView() {
             <SocGauge socKwh={soc?.soc_kwh ?? 0} socPct={soc?.soc_pct_of_max ?? 0} />
             <PumpPauseButton paused={paused} onToggle={togglePause} />
             <p className="text-center text-xs text-ink-muted">
-              Instantly sheds about {fmt(pumping * 40)} W of pump load across {tanks.length} buildings.
+              {soc?.pumps_running
+                ? `Instantly sheds ${fmt(soc.sheddable_w)} W of pump load. `
+                : 'No pumps running right now. '}
+              {soc?.pause_minutes_available != null &&
+                `Every building keeps safe water for at least ${fmtDuration(soc.pause_minutes_available)}.`}
             </p>
           </div>
         </Card>

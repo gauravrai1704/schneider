@@ -89,7 +89,7 @@ def current_sky_w(dt: datetime) -> float:
 
 
 @lru_cache(maxsize=512)
-def _k_curve(issue_minute: str, k_now: float | None, weather_version: float) -> tuple[str, dict[int, float]]:
+def _k_curve(issue_minute: str, k_now: float | None, k_prev: float | None, weather_version: float) -> tuple[str, dict[int, float]]:
     """Clearness index at horizons 0, 60, ..., 360 min from issue time.
     Cached per minute / panel reading / weather refresh — the scheduler asks
     many times a second."""
@@ -111,7 +111,7 @@ def _k_curve(issue_minute: str, k_now: float | None, weather_version: float) -> 
     feats = solar_frame(
         horizon_min=horizons[1:], tgt_ist=times[1:].tz_convert(config.IST),
         cs_tgt=cs[1:], nwp_ghi_tgt=wx["nwp_ghi"].values[1:], cloud_tgt=wx["cloud_cover"].values[1:],
-        k_now=k_obs, nwp_k_now=nwp_k[0], k_prev=np.nan,
+        k_now=k_obs, nwp_k_now=nwp_k[0], k_prev=np.nan if k_prev is None else k_prev,
     )
     if k_now is not None:
         pred = np.clip(_solar_obs_model.predict(feats) + k_now, 0, K_MAX)
@@ -122,13 +122,16 @@ def _k_curve(issue_minute: str, k_now: float | None, weather_version: float) -> 
     return source, {0: float(k0), **{h: float(p) for h, p in zip(horizons[1:], pred)}}
 
 
-def solar_forecast(now: datetime, horizons_min: list[int], recent_cloud_factor: float | None = None) -> list[dict]:
+def solar_forecast(now: datetime, horizons_min: list[int], recent_cloud_factor: float | None = None,
+                   k_prev: float | None = None) -> list[dict]:
     """recent_cloud_factor: the panel's current clearness index (observed /
-    clear-sky output; 1.0 = clear). None if unknown (night, no telemetry)."""
+    clear-sky output; 1.0 = clear). None if unknown (night, no telemetry).
+    k_prev: the same index about an hour ago, if known."""
     now = to_ist(now)
     minute = now.replace(second=0, microsecond=0)
     k_now = None if recent_cloud_factor is None else round(float(recent_cloud_factor), 2)
-    source, k_at = _k_curve(minute.isoformat(), k_now, weather.fetched_at)
+    k_prev = None if k_prev is None or k_now is None else round(float(k_prev), 2)
+    source, k_at = _k_curve(minute.isoformat(), k_now, k_prev, weather.fetched_at)
     knots = sorted(k_at)
 
     out = []
@@ -144,9 +147,10 @@ def solar_forecast(now: datetime, horizons_min: list[int], recent_cloud_factor: 
     return out
 
 
-def is_predicted_dip(now: datetime, lookahead_min: int, threshold_w: float, cloud_factor: float | None = 1.0) -> bool:
+def is_predicted_dip(now: datetime, lookahead_min: int, threshold_w: float, cloud_factor: float | None = 1.0,
+                     k_prev: float | None = None) -> bool:
     """True if solar is forecast to drop below threshold within the lookahead window."""
-    points = solar_forecast(now, [lookahead_min], cloud_factor)
+    points = solar_forecast(now, [lookahead_min], cloud_factor, k_prev)
     return points[0]["solar_w"] < threshold_w
 
 
@@ -194,9 +198,10 @@ def load_forecast(now: datetime, horizons_min: list[int]) -> list[dict]:
     return out
 
 
-def combined_forecast(now: datetime, horizons_min: list[int] | None = None, cloud_factor: float | None = None) -> list[dict]:
+def combined_forecast(now: datetime, horizons_min: list[int] | None = None, cloud_factor: float | None = None,
+                      k_prev: float | None = None) -> list[dict]:
     horizons_min = horizons_min or [0, 15, 30, 60]
-    solar = solar_forecast(now, horizons_min, cloud_factor)
+    solar = solar_forecast(now, horizons_min, cloud_factor, k_prev)
     load = load_forecast(now, horizons_min)
     return [
         {"horizon_min": s["horizon_min"], "solar_w": s["solar_w"], "feeder_load_w": l["feeder_load_w"],

@@ -42,6 +42,8 @@ app/
   clock.py        IST "now" helpers (never use the server's UTC clock for time-of-day logic)
   bus.py          in-memory pub/sub with MQTT wildcards; MqttBus when VTB_MQTT_URL is set
   water.py        per-building water demand (CPHEEO 135 LPCD norm, deterministic)
+  municipal.py    municipal supply windows (sump refill times)
+  soc.py          feeder State of Charge, sheddable load, safe pause duration
   solar_geometry.py  sun position + clear-sky irradiance
   live_data.py    live Open-Meteo + Delhi SLDC feeds (background refresh, disk cache)
   features.py     feature building shared by training and inference
@@ -77,8 +79,8 @@ tests/                pytest suite (`python -m pytest -q`)
 
 | Piece | Status |
 |---|---|
-| Scheduler logic (safety, staggering, pause override, dip pre-fill) | Real |
-| SoC calculation | Real |
+| Scheduler (5 s tick, safety + hysteresis, staggered starts, pause, dip pre-fill, municipal supply sync) | Real |
+| Feeder SoC (fillable kWh limited by sump water, sheddable W, safe pause duration) | Real |
 | Feeder-scale simulator (300 buildings, before/after curves) | Runs, but numbers not yet trustworthy (stagger bug, made-up baseline) |
 | Forecasting | LightGBM trained on a year of real Delhi data (NASA POWER, Open-Meteo, SLDC), live inputs |
 | Water demand | Synthetic, scaled to the CPHEEO 135 L/person/day norm |

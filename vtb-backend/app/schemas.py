@@ -35,6 +35,9 @@ class FeederSoC(BaseModel):
     soc_kwh: float                # kWh of pumping that can be shifted right now
     soc_pct_of_max: float
     tanks_reporting: int
+    pumps_running: int = 0
+    sheddable_w: float = 0.0                      # load a Pump Pause removes right now
+    pause_minutes_available: float | None = None  # before the first tank hits its safe minimum
 
 
 class LoadCurvePoint(BaseModel):

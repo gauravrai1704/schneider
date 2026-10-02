@@ -22,7 +22,7 @@ TICK_SECONDS = 2
 # Real tanks drain over hours; speed water use up so level changes are visible on stage.
 SPEEDUP = 60
 PUMP_FILL_PCT_PER_TICK = 2.5
-SUMP_CAPACITY_RATIO = 5          # ground sump holds ~5x the overhead tank
+SUMP_CAPACITY_RATIO = config.SUMP_CAPACITY_LITRES / config.TANK_CAPACITY_LITRES
 
 _state = {f"tank-{i:02d}": {"level_pct": random.uniform(30, 80),
                             "sump_level_pct": random.uniform(50, 90),
@@ -61,7 +61,7 @@ async def _tick():
             "level_pct": round(s["level_pct"], 1),
             "sump_level_pct": round(s["sump_level_pct"], 1),
             "pump_on": s["pump_on"],
-            "pump_w": 40.0 if s["pump_on"] else 0.0,
+            "pump_w": config.PUMP_RATED_W if s["pump_on"] else 0.0,
             "ts": now.isoformat(),
         }
         await bus.publish(config.TOPIC_TANK_TELEMETRY.format(id=bid), payload)

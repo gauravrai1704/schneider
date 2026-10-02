@@ -94,7 +94,7 @@ The full list is in [`vtb-backend/data/SOURCES.md`](vtb-backend/data/SOURCES.md)
 - [x] Backend: IST-correct scheduling, MQTT bridge, sump-based dry-run protection
 - [x] Forecasting on real Delhi data with live feeds and offline fallbacks
 - [x] Dashboard: DISCOM, Resident and Simulation views
-- [ ] Scheduler v2: fixed tick, municipal supply sync, per-feeder SoC
+- [x] Scheduler v2: fixed tick, municipal supply sync, per-feeder SoC
 - [ ] Simulator: realistic baseline and PuLP optimiser. **Current simulator numbers are a preview; don't quote them.**
 - [ ] Impact, resident savings (₹) and demo-control endpoints
 - [ ] Physical model integration (ESP32, pumps, sensors)

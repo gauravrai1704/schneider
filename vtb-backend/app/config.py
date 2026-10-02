@@ -20,6 +20,7 @@ SAFE_MIN_LEVEL_PCT = 15.0        # never let a tank drop below this
 OVERFLOW_LEVEL_PCT = 95.0        # stop filling above this
 SUMP_MIN_LEVEL_PCT = 10.0        # below this the pump would run dry
 TANK_CAPACITY_LITRES = 1000.0    # per-tank capacity used in SoC math
+SUMP_CAPACITY_LITRES = 5000.0    # ground sump, typically several times the overhead tank
 ENERGY_PER_LITRE_WH = 0.5        # Wh of pumping energy per litre lifted
                                   # (0.75 HP pump ~560 W fills 1000 L in ~50 min -> ~0.47 Wh/L)
 
@@ -30,9 +31,17 @@ PERSONS_PER_BUILDING = 5         # Census 2011 avg Indian household ~4.8
 # --- Municipal water supply (Delhi Jal Board style twice-daily supply, IST hours) ---
 # The sump only refills inside these windows; the scheduler plans tank pumping around them.
 MUNICIPAL_SUPPLY_WINDOWS = [(5, 7), (18, 20)]
+PRE_WINDOW_MIN = 60              # start making room in the sump this long before a window
+SUMP_MAKE_ROOM_PCT = 70.0        # ...if the sump is at least this full
+SUMP_NEAR_FULL_PCT = 90.0        # during a window, only pump (from grid) if supply would be turned away
 
 # --- Scheduling ---
+SCHEDULER_TICK_SEC = 5           # live control loop period
+CMD_REFRESH_SEC = 60             # re-send unchanged commands this often (firmware watchdog)
 STAGGER_DELAY_SEC = 3            # min delay between two pumps starting
+REFILL_BAND_PCT = 10.0           # safety refill continues until SAFE_MIN + this (hysteresis)
+SUMP_TRANSFER_MAX_TANK_PCT = 90.0  # pre-window sump->tank transfer stops at this tank level
+PUMP_RATED_W = 40.0              # demo pump draw; real retrofit target ~560 W (0.75 HP)
 SOLAR_SURPLUS_THRESHOLD_W = 150  # above this, treat as "green hour"
 FORECAST_DIP_LOOKAHEAD_MIN = 60  # how far ahead we check for a predicted solar dip
 

@@ -16,6 +16,8 @@ change without updating both sides.
 - `level_pct` is 0–100. `pump_w` is instantaneous pump power draw in watts.
 - `sump_level_pct` (0–100) is **expected on every message** — each building reports its own ground sump. Dry-run protection is decided from the sump, not the overhead tank. If a message omits it, the backend skips the server-side sump check for that tick and relies on the firmware's local protection.
 - `ts` is informational; the backend stamps its own receive time. All time-of-day logic runs in IST.
+- **Commands (`vtb/tank/{id}/cmd`)** are sent when a pump's decision changes, and re-sent unchanged every 60 s. Firmware should treat ~3 missed refreshes (no command for 3 min) as "server offline" and fall back to its local rules: keep the tank above the safe minimum, never run with an empty sump, stop at full.
+- The scheduler runs every 5 s and starts at most one pump per 3 s (staggered starts), so expect pumps to switch on one after another, not all at once.
 - Firmware should still enforce dry-run/overflow protection **locally** even if a `cmd` message never arrives (network drop) — see the "offline safety" note in the project plan.
 
 ## REST API (FastAPI backend)
@@ -24,10 +26,10 @@ change without updating both sides.
 |---|---|---|
 | `/health` | GET | `{"status": "ok"}` |
 | `/tanks` | GET | Latest telemetry per tank |
-| `/feeder/soc?feeder_id=feeder-1` | GET | `{feeder_id, soc_kwh, soc_pct_of_max, tanks_reporting}` |
+| `/feeder/soc?feeder_id=feeder-1` | GET | `{feeder_id, soc_kwh, soc_pct_of_max, tanks_reporting, pumps_running, sheddable_w, pause_minutes_available}` |
 | `/forecast?horizons=0,15,30,60` | GET | List of `{horizon_min, solar_w, feeder_load_w, discom_load_mw, solar_source, load_source}` |
 | `/sources` | GET | Live feed health, which models are active, their held-out accuracy |
-| `/loadcurve` | GET | Last 200 pump commands (building_id, action, reason, ts) |
+| `/loadcurve` | GET | Last 200 pump-command *changes* (building_id, action, reason, ts) |
 | `/pause` | POST | Body `{"active": true/false}` — publishes `vtb/discom/pause` |
 | `/simulate?n_buildings=300&cloudy_day=false` | GET | `{n_buildings, peak_reduction_pct, kwh_shifted, curve}` |
 | `/ws/live` | WebSocket | Pushes `tank_telemetry`, `solar_telemetry`, `pump_commands`, `pause_state` events as they happen |
