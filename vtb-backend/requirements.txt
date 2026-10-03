@@ -13,3 +13,5 @@ beautifulsoup4
 holidays
 pytest
 httpx
+pulp>=2.8,<4
+highspy

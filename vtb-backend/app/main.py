@@ -20,7 +20,9 @@ from app.forecast import combined_forecast, model_info, panel_clearness
 from app import live_data
 from app.scheduler import Scheduler, TankSnapshot
 from app.simulator import run_simulation
-from app.soc import feeder_soc as compute_feeder_soc
+from app.soc import feeder_soc as compute_feeder_soc, fillable_litres
+from app.headroom import pumps_allowed, valley_ceiling
+import numpy as np
 
 Base.metadata.create_all(bind=engine)
 
@@ -122,13 +124,37 @@ async def on_discom_pause(topic: str, payload: dict):
     await _run_scheduler_tick()   # act immediately, don't wait for the next tick
 
 
+_headroom_cache: dict = {"minute": None, "pumps": None}
+
+
+def _headroom_pumps(now: datetime) -> int | None:
+    """How many pumps may run now, from the 6 h load + solar forecast (demo watts): valley-fill
+    the coming solar hours, never above the forecast peak (app/headroom.py). Recomputed once a
+    minute. None = no limit."""
+    minute = now.replace(second=0, microsecond=0)
+    if _headroom_cache["minute"] != minute:
+        try:
+            fc = combined_forecast(now, list(range(0, 361, 30)), _latest_cloud_factor, _k_prev(now))
+            net = np.array([p["feeder_load_w"] - p["solar_w"] for p in fc])
+            green = np.array([p["solar_w"] >= config.SOLAR_SURPLUS_THRESHOLD_W for p in fc])
+            need_l = sum(fillable_litres(t["level_pct"], t["sump_level_pct"]) for t in _latest_tanks.values())
+            ceiling = valley_ceiling(net, green, config.PUMP_RATED_W, need_l / config.SIM_PUMP_FLOW_LPH, 0.5)
+            _headroom_cache["pumps"] = pumps_allowed(net[0], ceiling if green[0] else net.max(), config.PUMP_RATED_W)
+        except Exception:
+            log.exception("headroom forecast failed — running without a cap")
+            _headroom_cache["pumps"] = None
+        _headroom_cache["minute"] = minute
+    return _headroom_cache["pumps"]
+
+
 async def _run_scheduler_tick():
     if not _latest_tanks:
         return
     now = now_ist()
     tanks = [TankSnapshot(t["building_id"], t["level_pct"], t["sump_level_pct"], t["pump_on"])
              for t in _latest_tanks.values()]
-    decisions = scheduler.decide(tanks, _latest_solar_w, now, _latest_cloud_factor, _k_prev(now))
+    decisions = scheduler.decide(tanks, _latest_solar_w, now, _latest_cloud_factor, _k_prev(now),
+                                 max_running=_headroom_pumps(now))
 
     mono = time.monotonic()
     changed = [d for d in decisions if _last_sent.get(d.building_id, ("", 0))[0] != d.action]

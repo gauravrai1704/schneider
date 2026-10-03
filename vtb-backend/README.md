@@ -44,6 +44,9 @@ app/
   water.py        per-building water demand (CPHEEO 135 LPCD norm, deterministic)
   municipal.py    municipal supply windows (sump refill times)
   soc.py          feeder State of Charge, sheddable load, safe pause duration
+  headroom.py     feeder headroom cap (valley filling under the forecast peak)
+  sim_inputs.py   real solar day (NASA POWER) + BYPL load shape for the simulator
+  optimizer.py    day-ahead LP benchmark (PuLP + HiGHS)
   solar_geometry.py  sun position + clear-sky irradiance
   live_data.py    live Open-Meteo + Delhi SLDC feeds (background refresh, disk cache)
   features.py     feature building shared by training and inference
@@ -81,7 +84,7 @@ tests/                pytest suite (`python -m pytest -q`)
 |---|---|
 | Scheduler (5 s tick, safety + hysteresis, staggered starts, pause, dip pre-fill, municipal supply sync) | Real |
 | Feeder SoC (fillable kWh limited by sump water, sheddable W, safe pause duration) | Real |
-| Feeder-scale simulator (300 buildings, before/after curves) | Runs, but numbers not yet trustworthy (stagger bug, made-up baseline) |
+| Feeder simulator: today's behaviour vs VTB controller vs LP optimum, real Delhi solar + load, real-world units | Real |
 | Forecasting | LightGBM trained on a year of real Delhi data (NASA POWER, Open-Meteo, SLDC), live inputs |
 | Water demand | Synthetic, scaled to the CPHEEO 135 L/person/day norm |
 | Telemetry source | Mocked in-process — swap per `docs/api_contract.md` once ESP32s are ready |
@@ -90,4 +93,3 @@ tests/                pytest suite (`python -m pytest -q`)
 
 1. Point the dashboard at `http://localhost:8000` and `/ws/live` — everything above is already live with mock data.
 2. When the hardware teammate has telemetry flowing, follow the "switch to real hardware" section in `docs/api_contract.md`.
-3. Consider swapping the rule-based `scheduler.py` for an LP/greedy optimizer (PuLP/OR-Tools) if you want the "optimized" claim to be literal.

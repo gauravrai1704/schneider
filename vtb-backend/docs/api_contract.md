@@ -31,7 +31,7 @@ change without updating both sides.
 | `/sources` | GET | Live feed health, which models are active, their held-out accuracy |
 | `/loadcurve` | GET | Last 200 pump-command *changes* (building_id, action, reason, ts) |
 | `/pause` | POST | Body `{"active": true/false}` — publishes `vtb/discom/pause` |
-| `/simulate?n_buildings=300&cloudy_day=false` | GET | `{n_buildings, peak_reduction_pct, kwh_shifted, curve}` |
+| `/simulate?n_buildings=300&cloudy_day=false` | GET | `{n_buildings, peak_reduction_pct, kwh_shifted, evening_pumping_cut_pct, metrics{baseline,rules,optimal}, inputs, curve[]}`. Curve points (W, every 5 min): pump load `baseline_w` / `optimized_w` / `optimal_w`, plus `base_load_w`, `solar_w` and feeder net load `net_*_w` |
 | `/ws/live` | WebSocket | Pushes `tank_telemetry`, `solar_telemetry`, `pump_commands`, `pause_state` events as they happen |
 
 Full interactive docs at `http://localhost:8000/docs` once the server is running.

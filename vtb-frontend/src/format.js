@@ -52,6 +52,7 @@ export function explainReason(reason) {
   if (reason.includes('dry-run')) return 'Sump is nearly empty — pump stopped so it cannot run dry.'
   if (reason.includes('overflow')) return 'Tank is full — pump stopped to prevent overflow.'
   if (reason.includes('DISCOM pause')) return 'Paused by the grid operator for demand response.'
+  if (reason.includes('expected peak')) return 'The grid is near its daily peak — waiting so pumping does not add to it.'
   return reason[0].toUpperCase() + reason.slice(1)
 }
 
@@ -64,6 +65,7 @@ export function pumpStatus(tank, command, paused) {
     return { tone: 'good', label: 'Pumping', reason: explainReason(reason) || 'Filling the tank.' }
   }
   if (reason.includes('held for staggered start')) return { tone: 'warning', label: 'Starting soon', reason: explainReason(reason) }
+  if (reason.includes('expected peak')) return { tone: 'warning', label: 'Waiting (grid peak)', reason: explainReason(reason) }
   if (reason.includes('dry-run')) return { tone: 'critical', label: 'Protected', reason: explainReason(reason) }
   if (reason.includes('overflow')) return { tone: 'good', label: 'Full', reason: explainReason(reason) }
   return { tone: 'neutral', label: 'Idle', reason: explainReason(reason) || 'Waiting for the next green window.' }

@@ -51,9 +51,15 @@ FORECAST_DIP_LOOKAHEAD_MIN = 60  # how far ahead we check for a predicted solar 
 SOLAR_PEAK_W = 600.0             # panel output at 1000 W/m² irradiance
 FEEDER_PEAK_W = 1200.0           # feeder load at the DISCOM's historical peak
 
-# --- Simulation ---
+# --- Simulation (real-world scale, not demo watts) ---
 DEFAULT_SIM_BUILDINGS = 300
 SIM_TIMESTEP_MIN = 5
+SIM_PUMP_KW = 0.56               # 0.75 HP domestic pump
+SIM_PUMP_FLOW_LPH = SIM_PUMP_KW * 1000 / ENERGY_PER_LITRE_WH   # ~1120 L/h, consistent with Wh/L
+SIM_HOUSEHOLD_PEAK_KW = 1.0      # per-building non-pump demand at the DISCOM's peak (BYPL ~1 kW/consumer)
+SIM_SOLAR_KWP_PER_BUILDING = 0.5 # feeder-level solar per building (rooftop + local plants)
+SIM_BASELINE_ON_PCT = (25.0, 45.0)  # today: pump switched on when tank falls below this (per building)
+SIM_SEED = 42
 
 # --- Bus / MQTT topics (must match the Day-1 contract with hardware) ---
 TOPIC_TANK_TELEMETRY = "vtb/tank/{id}/telemetry"   # ESP32 -> server

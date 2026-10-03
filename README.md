@@ -88,6 +88,24 @@ The full list is in [`vtb-backend/data/SOURCES.md`](vtb-backend/data/SOURCES.md)
 | Solar, 1–6 h ahead | **45.9 W/m²** error | 70.6 (raw weather forecast) |
 | Feeder load, 15 min – 6 h ahead | **5.8%** error | 7.1% (same time yesterday) |
 
+## Simulated impact
+
+300 buildings on one Delhi feeder, on a typical October day (real NASA solar, real BYPL load shape, 0.75 HP pumps, CPHEEO water demand). The same water is scheduled three ways:
+
+| | Today | VTB controller | Best possible (LP) |
+|---|---|---|---|
+| Pumping powered by solar | 41% | **95%** | 100% |
+| Pumping in the evening peak (6–11 pm) | 17.4 kWh | **0 kWh** | 0 kWh |
+| Peak pump load | 25 kW | 41 kW | 58 kW |
+| Feeder net peak | 306 kW | **300 kW (−2%)** | 300 kW |
+| Time any tank was below its safe level | 0% | **0%** | — |
+
+- **60 kWh/day** of pumping moves into solar hours, about **20 MWh/day per 1 lakh buildings**.
+- The controller **fills the midday valley** instead of starting every pump at once, so it never creates a new peak.
+- The effect on the feeder's overall peak is modest (−2%), because household demand dominates the evening peak. The value is in *flexible, controllable* load: green-hour pumping, evening relief and instant pause capacity.
+
+Explore other building counts and a real cloudy day in the dashboard's Simulation tab.
+
 ## Status
 
 - [x] Hardware/software interface contract (MQTT + REST)
@@ -95,7 +113,7 @@ The full list is in [`vtb-backend/data/SOURCES.md`](vtb-backend/data/SOURCES.md)
 - [x] Forecasting on real Delhi data with live feeds and offline fallbacks
 - [x] Dashboard: DISCOM, Resident and Simulation views
 - [x] Scheduler v2: fixed tick, municipal supply sync, per-feeder SoC
-- [ ] Simulator: realistic baseline and PuLP optimiser. **Current simulator numbers are a preview; don't quote them.**
+- [x] Simulator: today's behaviour vs VTB controller vs LP optimum, on real Delhi solar and load data
 - [ ] Impact, resident savings (₹) and demo-control endpoints
 - [ ] Physical model integration (ESP32, pumps, sensors)
 
