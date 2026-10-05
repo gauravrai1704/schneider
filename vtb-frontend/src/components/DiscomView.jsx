@@ -1,6 +1,7 @@
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { getFeederSoc, getForecast, getSources, postPause, useLiveFeed, usePoll } from '../api'
-import { clockLabel, fmt, loadSourceLabel, pumpStatus, solarSourceLabel, tankName } from '../format'
+import { useState } from 'react'
+import { getDemo, getFeederSoc, getForecast, getImpact, getSources, postDemoCloud, postPause, useLiveFeed, usePoll } from '../api'
+import { clockLabel, fmt, fmtDuration, loadSourceLabel, pumpStatus, solarSourceLabel, tankName } from '../format'
 import { useTheme } from '../theme'
 import { IconBolt, IconDrop, IconSun } from './icons'
 import DataSources from './DataSources'
@@ -18,13 +19,22 @@ export default function DiscomView() {
   const { data: soc } = usePoll(getFeederSoc, 5000)
   const { data: forecast } = usePoll(() => getForecast(FORECAST_HORIZONS), 30000)
   const { data: sources } = usePoll(getSources, 30000)
+  const { data: impact } = usePoll(getImpact, 10000)
+  const [demoTick, setDemoTick] = useState(0)
+  const { data: demo } = usePoll(getDemo, 15000, [demoTick])
+  const toggleCloud = async () => {
+    await postDemoCloud(!demo?.cloud)
+    setDemoTick((n) => n + 1)
+  }
 
   const tanks = Object.values(tanksById).sort((a, b) => a.building_id.localeCompare(b.building_id))
   const pumping = tanks.filter((t) => pumpStatus(t, commandsById[t.building_id], paused).label === 'Pumping').length
   const low = tanks.filter((t) => t.level_pct < SAFE_MIN).length
   const now = forecast?.[0]
   const clearness = sources?.panel_clearness
-  const t0 = Date.now()
+  // Follow the server's clock (it may be running a demo clock) for forecast times
+  const skew = sources?.server_time ? Date.parse(sources.server_time) - Date.now() : 0
+  const t0 = Date.now() + skew
   const forecastData = (forecast || []).map((f) => ({ ...f, ts: t0 + f.horizon_min * 60000 }))
 
   const togglePause = async (active) => {
@@ -53,7 +63,12 @@ export default function DiscomView() {
             <SocGauge socKwh={soc?.soc_kwh ?? 0} socPct={soc?.soc_pct_of_max ?? 0} />
             <PumpPauseButton paused={paused} onToggle={togglePause} />
             <p className="text-center text-xs text-ink-muted">
-              Instantly sheds about {fmt(pumping * 40)} W of pump load across {tanks.length} buildings.
+              {soc?.pumps_running
+                ? `Instantly sheds ${fmt(soc.sheddable_w)} W of pump load. `
+                : 'No pumps running right now. '}
+              {soc?.pause_minutes_available != null && (soc.pause_minutes_available > 0
+                ? `Every building keeps safe water for at least ${fmtDuration(soc.pause_minutes_available)}.`
+                : 'A building below its safe level keeps refilling even during a pause.')}
             </p>
           </div>
         </Card>
@@ -109,7 +124,21 @@ export default function DiscomView() {
           </ResponsiveContainer>
         </Card>
 
-        <Card title="Solar panel — live" subtitle="Last few minutes, one reading every 2 s">
+        <Card
+          title="Solar panel — live"
+          subtitle="Last few minutes, one reading every 2 s"
+          right={demo?.mock_running && (
+            <button
+              onClick={toggleCloud}
+              className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
+                demo.cloud ? 'border-solar bg-solar-soft text-ink' : 'border-line text-ink-secondary hover:bg-raised'
+              }`}
+              title="Demo: simulate covering the panel"
+            >
+              {demo.cloud ? 'Clear the cloud' : 'Simulate cloud'}
+            </button>
+          )}
+        >
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={solarHistory} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
               <CartesianGrid stroke={chart.grid} vertical={false} />
@@ -158,7 +187,30 @@ export default function DiscomView() {
         )}
       </Card>
 
+      <Card title="Today on this feeder" subtitle="Since midnight · model scale, rupees for a real 0.75 HP pump">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <TodayStat label="Pumping on solar" value={impact?.green_share_pct != null ? `${fmt(impact.green_share_pct)}%` : '—'}
+                     hint={impact ? `${fmt(impact.wh_pumped, 1)} Wh pumped` : ''} />
+          <TodayStat label="Pumping in evening peak" value={impact ? `${fmt(impact.wh_evening_peak, 1)} Wh` : '—'}
+                     hint={impact?.tariff ? `${impact.tariff.peak_hours} costs +${impact.tariff.peak_surcharge_pct}%` : ''} />
+          <TodayStat label="Saved by time-of-day rates" value={impact ? `₹${fmt(impact.tod_saving_inr, 2)}` : '—'}
+                     hint={impact?.tariff ? `Solar hours ${impact.tariff.solar_hours} are ${impact.tariff.solar_discount_pct}% cheaper` : ''} />
+          <TodayStat label="Pump Pause events" value={impact ? fmt(impact.pause_events) : '—'}
+                     hint={impact?.pause_events ? `Up to ${fmt(impact.max_shed_w)} W shed · ${fmt(impact.pause_minutes, 1)} min paused` : 'None today'} />
+        </div>
+      </Card>
+
       <DataSources sources={sources} />
+    </div>
+  )
+}
+
+function TodayStat({ label, value, hint }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-ink-muted">{label}</div>
+      <div className="num text-lg font-semibold text-ink">{value}</div>
+      {hint && <div className="truncate text-xs text-ink-muted" title={hint}>{hint}</div>}
     </div>
   )
 }

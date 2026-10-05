@@ -93,8 +93,9 @@ class _Feed:
 
     def status(self) -> dict:
         age = time.time() - self.fetched_at if self.fetched_at else None
+        # "fresh" goes by age, not origin: data loaded from disk at start-up is still current
         return {"source": self.source, "age_sec": round(age) if age is not None else None,
-                "last_error": self.last_error}
+                "fresh": age is not None and age < 2 * self.refresh_sec, "last_error": self.last_error}
 
 
 class WeatherFeed(_Feed):

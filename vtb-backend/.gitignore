@@ -8,3 +8,7 @@ vtb.db-journal
 # raw downloads are re-fetchable; processed CSVs in data/processed/ are committed
 data/raw/
 data/cache/
+
+# test coverage output
+.coverage
+htmlcov/

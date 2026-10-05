@@ -4,12 +4,12 @@ import { createContext, createElement, useContext, useEffect, useState } from 'r
  * the CSS tokens in index.css. Solar/load pair validated (CVD + contrast) on both surfaces. */
 export const CHART = {
   light: {
-    solar: '#eb6834', load: '#2a78d6', baseline: '#898781',
+    solar: '#eb6834', load: '#2a78d6', baseline: '#898781', optimal: '#1baf7a',
     grid: '#e1e0d9', axis: '#c3c2b7', tick: '#6f6e69', surface: '#fcfcfb', ink: '#0b0b0b', inkSecondary: '#52514e',
     waterFill: '#3987e5', waterTrack: '#cde2fb', low: '#d03b3b',
   },
   dark: {
-    solar: '#d95926', load: '#3987e5', baseline: '#898781',
+    solar: '#d95926', load: '#3987e5', baseline: '#898781', optimal: '#199e70',
     grid: '#2c2c2a', axis: '#383835', tick: '#9a998f', surface: '#16181d', ink: '#ffffff', inkSecondary: '#c3c2b7',
     waterFill: '#3987e5', waterTrack: '#1c2a40', low: '#d03b3b',
   },

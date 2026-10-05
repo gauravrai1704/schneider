@@ -35,18 +35,31 @@ class FeederSoC(BaseModel):
     soc_kwh: float                # kWh of pumping that can be shifted right now
     soc_pct_of_max: float
     tanks_reporting: int
+    pumps_running: int = 0
+    sheddable_w: float = 0.0                      # load a Pump Pause removes right now
+    pause_minutes_available: float | None = None  # before the first tank hits its safe minimum
 
 
 class LoadCurvePoint(BaseModel):
-    t_min: int                    # minutes from simulation start
-    baseline_w: float             # load with no smart scheduling
-    optimized_w: float            # load with VTB scheduling
+    t_min: int                    # minutes from midnight IST
+    baseline_w: float             # pump load, today's behaviour
+    optimized_w: float            # pump load, VTB live scheduler
+    optimal_w: float | None = None        # pump load, day-ahead LP benchmark
+    base_load_w: float | None = None      # household (non-pump) demand
+    solar_w: float | None = None          # local solar generation
+    net_baseline_w: float | None = None   # feeder net load = household + pumps - solar
+    net_optimized_w: float | None = None
+    net_optimal_w: float | None = None
 
 
 class SimulationResult(BaseModel):
     n_buildings: int
-    peak_reduction_pct: float
-    kwh_shifted: float
+    peak_reduction_pct: float              # feeder net peak, VTB vs today
+    kwh_shifted: float                     # pumping energy moved into solar hours
+    evening_pumping_cut_pct: float = 0.0
+    metrics: dict = {}                     # per policy: baseline / rules / optimal
+    optimizer_status: str = ""
+    inputs: dict = {}                      # data sources and assumptions used
     curve: list[LoadCurvePoint]
 
 

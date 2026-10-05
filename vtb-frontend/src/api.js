@@ -14,17 +14,27 @@ export const getFeederSoc = () => getJson('/feeder/soc')
 export const getForecast = (horizons = '0,15,30,60') => getJson(`/forecast?horizons=${horizons}`)
 export const getLoadCurve = () => getJson('/loadcurve')
 export const getSources = () => getJson('/sources')
+export const getImpact = () => getJson('/impact')
+export const getResident = (id) => getJson(`/resident/${encodeURIComponent(id)}`)
+export const getDemo = () => getJson('/demo')
+export const getPause = () => getJson('/pause')
+
+async function postJson(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`)
+  return res.json()
+}
+
+export const postDemoCloud = (active) => postJson('/demo/cloud', { active })
+export const postDemoLeak = (buildingId, active) => postJson('/demo/leak', { building_id: buildingId, active })
 export const getSimulation = (nBuildings, cloudyDay) =>
   getJson(`/simulate?n_buildings=${nBuildings}&cloudy_day=${cloudyDay}`)
 
-export async function postPause(active) {
-  const res = await fetch(`${API_BASE}/pause`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ active }),
-  })
-  return res.json()
-}
+export const postPause = (active) => postJson('/pause', { active })
 
 const SOLAR_HISTORY_POINTS = 90 // ~3 minutes at one reading every 2 s
 
@@ -49,6 +59,7 @@ function useLiveFeedState() {
         return next
       }))
       .catch(() => { /* backend not up yet — the WebSocket will fill in */ })
+    getPause().then((p) => setPaused(p.active)).catch(() => {})
   }, [])
 
   useEffect(() => {

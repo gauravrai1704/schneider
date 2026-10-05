@@ -17,7 +17,33 @@ def test_live_loop_with_mock_telemetry():
         assert all(t["sump_level_pct"] is not None for t in tanks)
         soc = client.get("/feeder/soc").json()
         assert soc["tanks_reporting"] >= 8
+        assert {"pumps_running", "sheddable_w", "pause_minutes_available"} <= soc.keys()
         fc = client.get("/forecast").json()
         assert len(fc) == 4 and {"solar_source", "load_source"} <= fc[0].keys()
         src = client.get("/sources").json()
         assert src["feeds"]["offline_mode"] is True and "models" in src
+
+
+def test_scheduler_loop_sends_commands_only_on_change():
+    from collections import Counter
+    from app import models, state
+    from app.database import SessionLocal
+
+    # Fresh-process state: earlier tests in this session already sent commands
+    state.last_sent.clear()
+    state.scheduler.commanded_on.clear()
+    db = SessionLocal()
+    start_id = db.query(models.PumpCommand.id).order_by(models.PumpCommand.id.desc()).first()
+    start_id = start_id[0] if start_id else 0
+    db.close()
+
+    with TestClient(app):
+        time.sleep(12)   # mock telemetry + ~2 scheduler ticks
+        db = SessionLocal()
+        rows = db.query(models.PumpCommand).filter(models.PumpCommand.id > start_id).all()
+        db.close()
+        assert rows, "scheduler loop produced no commands"
+        per_building = Counter(r.building_id for r in rows)
+        # first command per pump + at most a held->started pair; never one per telemetry message
+        assert max(per_building.values()) <= 3, per_building
+        assert set(state.last_sent) >= set(per_building)
