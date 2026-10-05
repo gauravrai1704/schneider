@@ -29,8 +29,14 @@ change without updating both sides.
 | `/feeder/soc?feeder_id=feeder-1` | GET | `{feeder_id, soc_kwh, soc_pct_of_max, tanks_reporting, pumps_running, sheddable_w, pause_minutes_available}` |
 | `/forecast?horizons=0,15,30,60` | GET | List of `{horizon_min, solar_w, feeder_load_w, discom_load_mw, solar_source, load_source}` |
 | `/sources` | GET | Live feed health, which models are active, their held-out accuracy |
-| `/loadcurve` | GET | Last 200 pump-command *changes* (building_id, action, reason, ts) |
-| `/pause` | POST | Body `{"active": true/false}` — publishes `vtb/discom/pause` |
+| `/loadcurve` | GET | Today's feeder in 5-min averages: `[{ts, pump_w, solar_w, feeder_load_w}]` |
+| `/commands` | GET | Last 200 pump-command *changes* (building_id, action, reason, ts) |
+| `/impact` | GET | Today's counters: `wh_pumped, green_share_pct, wh_evening_peak, tod_saving_inr, pause_events, pause_minutes, max_shed_w, tariff` |
+| `/resident/{id}` | GET | `{level_pct, litres, sump_level_pct, pump, next_pump{at, why}, next_supply, alerts[], savings, tariff}` — alerts include low water, possible leak, dry sump, full, pause |
+| `/pause` | GET / POST | GET `{"active": bool}` (persists across restarts). POST body `{"active": true/false}` — publishes `vtb/discom/pause`. A pause sheds every pump except tanks already below the safe minimum |
+| `/demo` | GET | `{mock_running, cloud, leaks}` — demo controls only work with the in-process mock |
+| `/demo/cloud` | POST | `{"active": bool}` — simulate covering the solar panel |
+| `/demo/leak` | POST | `{"building_id": "tank-03", "active": bool}` — make a mock tank drain like a leak |
 | `/simulate?n_buildings=300&cloudy_day=false` | GET | `{n_buildings, peak_reduction_pct, kwh_shifted, evening_pumping_cut_pct, metrics{baseline,rules,optimal}, inputs, curve[]}`. Curve points (W, every 5 min): pump load `baseline_w` / `optimized_w` / `optimal_w`, plus `base_load_w`, `solar_w` and feeder net load `net_*_w` |
 | `/ws/live` | WebSocket | Pushes `tank_telemetry`, `solar_telemetry`, `pump_commands`, `pause_state` events as they happen |
 

@@ -59,6 +59,9 @@ export function explainReason(reason) {
 /** Pump state shown to people: what it's doing and why, in one short phrase.
  * The latest scheduler command is the intent; telemetry can lag it by a tick. */
 export function pumpStatus(tank, command, paused) {
+  if (paused && command?.reason?.includes('despite the DISCOM pause')) {
+    return { tone: 'warning', label: 'Safety refill', reason: 'Below the safe level, so it keeps refilling even during the grid pause.' }
+  }
   if (paused) return { tone: 'critical', label: 'Paused by DISCOM', reason: 'Emergency demand response is active. Local safety rules still protect the water supply.' }
   const reason = command?.reason || ''
   if (command?.action === 'ON' || (!command && tank?.pump_on)) {

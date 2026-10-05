@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useLiveFeed } from '../api'
+import { getDemo, getResident, postDemoLeak, useLiveFeed, usePoll } from '../api'
 import { fmt, pumpStatus, tankName } from '../format'
 import TankGlass from './TankGlass'
 import { Banner, Card, StatusChip } from './ui'
 
-const TANK_LITRES = 1000
 const SAFE_MIN = 15
 const KEY = 'vtb-resident-building'
 
@@ -12,28 +11,41 @@ function readSaved() {
   try { return localStorage.getItem(KEY) } catch { return null }
 }
 
-/** What a resident cares about: is there water, is the pump OK, and why is it
- * (not) running — in plain words, on a phone-sized layout. */
+function timeLabel(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  const sameDay = d.toDateString() === new Date().toDateString()
+  const t = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return sameDay ? t : `tomorrow ${t}`
+}
+
+/** What a resident cares about: is there water, is the pump OK, when will it run next,
+ * and what they're saving — in plain words, on a phone-sized layout. */
 export default function ResidentView() {
   const { tanksById, commandsById, paused } = useLiveFeed()
   const ids = Object.keys(tanksById).sort()
   const [selected, setSelected] = useState(readSaved)
   const id = selected && tanksById[selected] ? selected : ids[0]
   const tank = id ? tanksById[id] : null
+  const { data: info } = usePoll(() => (id ? getResident(id) : Promise.resolve(null)), 4000, [id])
+  const [demoTick, setDemoTick] = useState(0)
+  const { data: demo } = usePoll(getDemo, 15000, [demoTick])
+  const leaking = demo?.leaks?.includes(id)
 
   useEffect(() => {
     if (!selected) return
     try { localStorage.setItem(KEY, selected) } catch { /* not critical */ }
   }, [selected])
 
-  const alerts = []
-  if (tank) {
-    if (tank.level_pct < SAFE_MIN) alerts.push({ tone: 'critical', title: 'Water running low', text: 'Your tank is below the safe level. A refill gets top priority, whatever the grid is doing.' })
-    if (tank.sump_level_pct != null && tank.sump_level_pct < 10) alerts.push({ tone: 'warning', title: 'Sump nearly empty', text: 'The pump is stopped to protect the motor until municipal supply refills the sump.' })
-    if (tank.level_pct > 92) alerts.push({ tone: 'good', title: 'Tank full', text: 'The pump stopped automatically to prevent overflow.' })
-    if (paused) alerts.push({ tone: 'warning', title: 'Grid support in progress', text: 'Pumping is briefly paused to help the local grid. Your water stays above the safe level.' })
+  const toggleLeak = async () => {
+    await postDemoLeak(id, !leaking)
+    setDemoTick((n) => n + 1)
   }
+
   const st = tank ? pumpStatus(tank, commandsById[id], paused) : null
+  const next = info?.next_pump
+  const savings = info?.savings
+  const alerts = info?.alerts ?? []
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4">
@@ -67,7 +79,7 @@ export default function ResidentView() {
                 <div>
                   <div className="text-xs text-ink-muted">Overhead tank</div>
                   <div className="text-4xl font-semibold text-ink">{fmt(tank.level_pct)}%</div>
-                  <div className="num text-sm text-ink-secondary">≈ {fmt((tank.level_pct / 100) * TANK_LITRES)} litres</div>
+                  <div className="num text-sm text-ink-secondary">≈ {fmt(info?.litres ?? tank.level_pct * 10)} litres</div>
                 </div>
                 <div>
                   <div className="text-xs text-ink-muted">Ground sump</div>
@@ -81,21 +93,61 @@ export default function ResidentView() {
             <div className="flex flex-col items-start gap-2">
               <StatusChip tone={st.tone}>{st.label}</StatusChip>
               <p className="text-sm text-ink-secondary">{st.reason}</p>
+              {next && next.why !== 'Pumping now' && (
+                <p className="text-sm text-ink">
+                  <span className="text-ink-muted">Next run: </span>
+                  {next.at && <span className="num font-medium">{timeLabel(next.at)} — </span>}
+                  {next.why.toLowerCase()}
+                </p>
+              )}
+              {info?.next_supply && (
+                <p className="text-xs text-ink-muted">Municipal water next arrives at {timeLabel(info.next_supply)}.</p>
+              )}
             </div>
           </Card>
 
           <div className="flex flex-col gap-2">
             {alerts.length === 0
               ? <Banner tone="good" title="Everything's normal">No alerts for your building.</Banner>
-              : alerts.map((a) => <Banner key={a.title} tone={a.tone} title={a.title}>{a.text}</Banner>)}
+              : alerts.map((a) => <Banner key={a.code} tone={a.tone} title={a.title}>{a.text}</Banner>)}
           </div>
 
-          <Card title="Green-hour pumping" subtitle="Coming soon: your monthly savings in ₹">
-            <p className="text-sm text-ink-secondary">
-              Your pump runs when solar power is plentiful and pauses during grid stress — the water is the same,
-              the electricity is cleaner and cheaper.
-            </p>
+          <Card
+            title="Your savings"
+            subtitle={info?.tariff
+              ? `Solar hours (${info.tariff.solar_hours}) are ${info.tariff.solar_discount_pct}% cheaper; ${info.tariff.peak_hours} costs ${info.tariff.peak_surcharge_pct}% more`
+              : 'Time-of-day tariff'}
+          >
+            {savings?.monthly_saving_inr != null ? (
+              <div className="flex flex-col gap-1">
+                <div className="text-3xl font-semibold text-ink">
+                  ₹{fmt(savings.monthly_saving_inr)}<span className="ml-1 text-sm font-normal text-ink-muted">/ month</span>
+                </div>
+                <p className="text-sm text-ink-secondary">
+                  {fmt(savings.today_green_share_pct)}% of today's pumping ran in cheap solar hours. Estimated for a real
+                  0.75 HP pump moving your building's water ({fmt(savings.real_pump_kwh_per_day, 2)} kWh/day), compared with
+                  paying the normal rate.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-ink-secondary">Your pump hasn't run yet today — savings appear after the first green-hour fill.</p>
+            )}
           </Card>
+
+          {demo?.mock_running && (
+            <button
+              onClick={toggleLeak}
+              className="self-start rounded-lg border border-line px-3 py-1.5 text-xs text-ink-secondary hover:bg-raised"
+              title="Demo: make this tank drain like it has a leak"
+            >
+              {leaking ? 'Demo: fix the leak' : 'Demo: simulate a leak'}
+            </button>
+          )}
+          {leaking && !alerts.some((a) => a.code === 'leak') && (
+            <p className="text-xs text-ink-muted">
+              Leak detection needs about a minute of data with the pump idle (tip: press Pause all pumps on the grid operator view).
+            </p>
+          )}
         </>
       )}
     </div>

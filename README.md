@@ -114,7 +114,7 @@ Explore other building counts and a real cloudy day in the dashboard's Simulatio
 - [x] Dashboard: DISCOM, Resident and Simulation views
 - [x] Scheduler v2: fixed tick, municipal supply sync, per-feeder SoC
 - [x] Simulator: today's behaviour vs VTB controller vs LP optimum, on real Delhi solar and load data
-- [ ] Impact, resident savings (₹) and demo-control endpoints
+- [x] Impact counters, resident view (next pump time, leak alerts, ₹ savings) and demo controls
 - [ ] Physical model integration (ESP32, pumps, sensors)
 
 ## Team

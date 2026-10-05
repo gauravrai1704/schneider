@@ -2,7 +2,7 @@
 Scheduler: decides ON/OFF for every pump at each tick.
 
 Priority order (highest wins):
-  1. DISCOM pause override -> everything OFF
+  1. DISCOM pause -> everything OFF, except a tank already below its safe minimum
   2. Safety: sump nearly empty (dry-run) -> OFF, tank overflow -> OFF
   3. Within an hour's water use of the safe minimum -> ON (+ REFILL_BAND hysteresis), whatever the grid is doing
   4. Solar surplus right now -> ON. If the forecast shows that surplus ending within
@@ -135,8 +135,17 @@ class Scheduler:
         self._last_tick = now
 
         if self.discom_paused:
-            self.commanded_on.clear()
-            return [Decision(t.building_id, "OFF", "DISCOM pause active") for t in tanks]
+            # Demand response sheds every pump except a tank already below its safe minimum
+            # (with water in the sump): "never runs dry" holds even during a pause.
+            out = []
+            for t in tanks:
+                sump_ok = t.sump_level_pct is None or t.sump_level_pct > SUMP_MIN_LEVEL_PCT
+                if t.level_pct < SAFE_MIN_LEVEL_PCT and sump_ok:
+                    out.append(Decision(t.building_id, "ON", "below safe minimum — refilling despite the DISCOM pause"))
+                else:
+                    out.append(Decision(t.building_id, "OFF", "DISCOM pause active"))
+            self.commanded_on = {d.building_id for d in out if d.action == "ON"}
+            return out
 
         mins_to_window = minutes_until_next_window(now)
         surplus = solar_w >= SOLAR_SURPLUS_THRESHOLD_W

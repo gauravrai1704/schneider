@@ -47,6 +47,11 @@ app/
   headroom.py     feeder headroom cap (valley filling under the forecast peak)
   sim_inputs.py   real solar day (NASA POWER) + BYPL load shape for the simulator
   optimizer.py    day-ahead LP benchmark (PuLP + HiGHS)
+  state.py        live in-memory state shared by the control loop and routes
+  routes.py       impact, load curve, resident, pause and demo endpoints
+  impact.py       today's live impact counters + 5-min load samples (persisted)
+  alerts.py       resident alerts incl. leak detection
+  tariff.py       time-of-day tariff (DERC slab + MoP ToD rules)
   solar_geometry.py  sun position + clear-sky irradiance
   live_data.py    live Open-Meteo + Delhi SLDC feeds (background refresh, disk cache)
   features.py     feature building shared by training and inference
@@ -87,6 +92,8 @@ tests/                pytest suite (`python -m pytest -q`)
 | Feeder simulator: today's behaviour vs VTB controller vs LP optimum, real Delhi solar + load, real-world units | Real |
 | Forecasting | LightGBM trained on a year of real Delhi data (NASA POWER, Open-Meteo, SLDC), live inputs |
 | Water demand | Synthetic, scaled to the CPHEEO 135 L/person/day norm |
+| Resident savings | DERC domestic rate x ToD factors from the Electricity (Rights of Consumers) Amendment Rules 2023; Delhi's exact ToD hours assumed |
+| Leak detection, impact counters, persistent pause | Real |
 | Telemetry source | Mocked in-process — swap per `docs/api_contract.md` once ESP32s are ready |
 
 ## Suggested next steps

@@ -51,6 +51,24 @@ FORECAST_DIP_LOOKAHEAD_MIN = 60  # how far ahead we check for a predicted solar 
 SOLAR_PEAK_W = 600.0             # panel output at 1000 W/m² irradiance
 FEEDER_PEAK_W = 1200.0           # feeder load at the DISCOM's historical peak
 
+# --- Tariff (for resident savings) ---
+# Normal rate: DERC domestic slab 401-800 units, FY 2025-26. Time-of-day shape follows the
+# minimums in the Electricity (Rights of Consumers) Amendment Rules 2023: solar hours (8 h,
+# set by the SERC) at least 20% cheaper, peak at least 1.10x for domestic consumers.
+# Delhi's exact ToD windows are an assumption here — adjust once DERC's order is confirmed.
+TARIFF_NORMAL_INR_PER_KWH = 6.50
+TARIFF_SOLAR_HOURS = (9, 17)
+TARIFF_SOLAR_FACTOR = 0.80
+TARIFF_PEAK_HOURS = (18, 23)
+TARIFF_PEAK_FACTOR = 1.10
+
+# --- Alerts ---
+LEAK_WINDOW_SEC = 600            # pump must be idle this long (in real time) before judging a leak
+LEAK_MIN_EXCESS_LPH = 30.0       # observed drain must exceed expected use by this much...
+LEAK_EXCESS_RATIO = 1.5          # ...and by this factor
+# Mock telemetry runs water use faster than real time; the leak check scales its expectations by this.
+TELEMETRY_TIME_SCALE = 1.0
+
 # --- Simulation (real-world scale, not demo watts) ---
 DEFAULT_SIM_BUILDINGS = 300
 SIM_TIMESTEP_MIN = 5

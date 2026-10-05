@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
@@ -60,3 +60,36 @@ class ForecastRecord(Base):
     solar_w = Column(Float)
     feeder_load_w = Column(Float)
     ts = Column(DateTime, default=now)
+
+
+class DailyImpact(Base):
+    """Running totals for one IST day on the feeder (demo watts)."""
+    __tablename__ = "daily_impact"
+
+    day = Column(Date, primary_key=True)
+    wh_pumped = Column(Float, default=0.0)
+    wh_green = Column(Float, default=0.0)        # pumped while solar was above the surplus threshold
+    wh_evening = Column(Float, default=0.0)      # pumped during the evening peak tariff window
+    cost_tod_inr = Column(Float, default=0.0)    # at time-of-day rates (real-scale estimate)
+    cost_flat_inr = Column(Float, default=0.0)   # same energy at the normal rate
+    pause_events = Column(Integer, default=0)
+    pause_seconds = Column(Float, default=0.0)
+    max_shed_w = Column(Float, default=0.0)
+
+
+class LoadSample(Base):
+    """5-minute averages of what the live feeder did today."""
+    __tablename__ = "load_samples"
+
+    ts = Column(DateTime, primary_key=True)      # bucket start, IST (naive)
+    pump_w = Column(Float)
+    solar_w = Column(Float)
+    feeder_load_w = Column(Float)
+
+
+class Setting(Base):
+    """Small persistent key/value state (e.g. DISCOM pause survives a restart)."""
+    __tablename__ = "settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(String)

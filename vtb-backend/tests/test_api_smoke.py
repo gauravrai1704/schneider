@@ -26,12 +26,12 @@ def test_live_loop_with_mock_telemetry():
 
 def test_scheduler_loop_sends_commands_only_on_change():
     from collections import Counter
-    from app import main, models
+    from app import models, state
     from app.database import SessionLocal
 
     # Fresh-process state: earlier tests in this session already sent commands
-    main._last_sent.clear()
-    main.scheduler.commanded_on.clear()
+    state.last_sent.clear()
+    state.scheduler.commanded_on.clear()
     db = SessionLocal()
     start_id = db.query(models.PumpCommand.id).order_by(models.PumpCommand.id.desc()).first()
     start_id = start_id[0] if start_id else 0
@@ -46,4 +46,4 @@ def test_scheduler_loop_sends_commands_only_on_change():
         per_building = Counter(r.building_id for r in rows)
         # first command per pump + at most a held->started pair; never one per telemetry message
         assert max(per_building.values()) <= 3, per_building
-        assert set(main._last_sent) >= set(per_building)
+        assert set(state.last_sent) >= set(per_building)

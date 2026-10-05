@@ -29,6 +29,8 @@ _state = {f"tank-{i:02d}": {"level_pct": random.uniform(30, 80),
                             "pump_on": False}
           for i in range(1, N_TANKS + 1)}
 _cloud_override = {"active": False}  # toggled for the demo's "cover the panel" moment
+_leaks: set[str] = set()             # tanks draining as if they had a leak (demo)
+LEAK_PCT_PER_TICK = 0.8
 
 
 def _sump_inflow_pct(h: float) -> float:
@@ -53,6 +55,8 @@ async def _tick():
     for bid, s in _state.items():
         draw_l = draw_litres_per_hr(now, bid) * TICK_SECONDS / 3600 * SPEEDUP
         s["level_pct"] = max(0.0, s["level_pct"] - 100 * draw_l / config.TANK_CAPACITY_LITRES)
+        if bid in _leaks:
+            s["level_pct"] = max(0.0, s["level_pct"] - LEAK_PCT_PER_TICK)
         s["sump_level_pct"] = min(100.0, s["sump_level_pct"] + _sump_inflow_pct(h))
         if s["pump_on"] and s["sump_level_pct"] > 0:
             s["level_pct"] = min(100.0, s["level_pct"] + PUMP_FILL_PCT_PER_TICK)
@@ -88,8 +92,21 @@ async def main():
 
 
 def set_cloud_override(active: bool):
-    """Call this from a demo script / debug endpoint to simulate 'covering the panel'."""
+    """Simulate 'covering the panel' (POST /demo/cloud)."""
     _cloud_override["active"] = active
+
+
+def set_leak(building_id: str, active: bool):
+    """Make one tank drain like it has a leak (POST /demo/leak)."""
+    (_leaks.add if active else _leaks.discard)(building_id)
+
+
+def building_ids() -> list[str]:
+    return list(_state)
+
+
+def demo_state() -> dict:
+    return {"cloud": _cloud_override["active"], "leaks": sorted(_leaks), "speedup": SPEEDUP}
 
 
 if __name__ == "__main__":
