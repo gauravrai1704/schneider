@@ -16,7 +16,7 @@ from sqlalchemy import desc
 from app.database import Base, engine, get_db, SessionLocal
 from app import models, schemas, config, state
 from app.bus import bus, MqttBus
-from app.clock import now_ist
+from app.clock import DEMO_TIME, now_ist
 from app.forecast import combined_forecast, model_info, panel_clearness
 from app import live_data
 from app.headroom import pumps_allowed, valley_ceiling
@@ -288,7 +288,8 @@ def sources():
     accuracy vs baselines — so every number on the dashboard is traceable."""
     return {"location": {"city": config.CITY, "lat": config.LATITUDE, "lon": config.LONGITUDE},
             "feeds": live_data.status(), "models": model_info(),
-            "panel_clearness": state.live["clearness"], "mock_running": state.live["mock_running"]}
+            "panel_clearness": state.live["clearness"], "mock_running": state.live["mock_running"],
+            "server_time": now_ist().isoformat(), "demo_clock": DEMO_TIME}
 
 
 @app.get("/tanks", response_model=list[schemas.TankState])

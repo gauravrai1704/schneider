@@ -67,6 +67,8 @@ Dashboard: http://localhost:5173
 
 **Tests:** `cd vtb-backend` and then `python -m pytest -q`
 
+**Before a demo:** `python -m tools.preflight` (in `vtb-backend`), then follow [DEMO.md](DEMO.md).
+
 To connect real ESP32s, start the backend with `VTB_MQTT_URL=mqtt://<broker>:1883`; the mock switches itself off. The MQTT and REST contract is in [`vtb-backend/docs/api_contract.md`](vtb-backend/docs/api_contract.md).
 
 ## Data: what's real
@@ -115,6 +117,7 @@ Explore other building counts and a real cloudy day in the dashboard's Simulatio
 - [x] Scheduler v2: fixed tick, municipal supply sync, per-feeder SoC
 - [x] Simulator: today's behaviour vs VTB controller vs LP optimum, on real Delhi solar and load data
 - [x] Impact counters, resident view (next pump time, leak alerts, ₹ savings) and demo controls
+- [x] Quality & demo prep: end-to-end MQTT test, preflight check, demo clock, [demo rehearsal script](DEMO.md)
 - [ ] Physical model integration (ESP32, pumps, sensors)
 
 ## Team

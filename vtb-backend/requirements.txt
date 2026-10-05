@@ -15,3 +15,5 @@ pytest
 httpx
 pulp>=2.8,<4
 highspy
+amqtt
+pytest-cov

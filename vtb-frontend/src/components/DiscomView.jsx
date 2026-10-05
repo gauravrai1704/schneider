@@ -32,7 +32,9 @@ export default function DiscomView() {
   const low = tanks.filter((t) => t.level_pct < SAFE_MIN).length
   const now = forecast?.[0]
   const clearness = sources?.panel_clearness
-  const t0 = Date.now()
+  // Follow the server's clock (it may be running a demo clock) for forecast times
+  const skew = sources?.server_time ? Date.parse(sources.server_time) - Date.now() : 0
+  const t0 = Date.now() + skew
   const forecastData = (forecast || []).map((f) => ({ ...f, ts: t0 + f.horizon_min * 60000 }))
 
   const togglePause = async (active) => {

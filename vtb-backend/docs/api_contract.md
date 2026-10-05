@@ -49,7 +49,13 @@ with MQTT topic semantics (`+`/`#` wildcards), and `mock/mock_generator.py`
 runs inside the API process, publishing realistic fake telemetry for 8 tanks
 (with sumps) + solar.
 
-**To switch to real hardware:** run a broker (e.g. Mosquitto on the demo
-laptop) and start the API with `VTB_MQTT_URL=mqtt://<host>:1883`. The mock
-turns itself off automatically and nothing else changes — every consumer
-only ever touches `bus.publish`/`bus.subscribe`.
+**To switch to real hardware:** run a broker — `python -m tools.local_broker`
+(pure Python, no install) or Mosquitto — and start the API with
+`VTB_MQTT_URL=mqtt://<host>:1883`. The mock turns itself off automatically
+and nothing else changes — every consumer only ever touches
+`bus.publish`/`bus.subscribe`.
+
+To test the MQTT path before the ESP32s are ready, `python -m tools.fake_esp32
+--broker mqtt://<host>:1883` runs the mock buildings as a separate MQTT client
+speaking exactly this contract. `tests/test_mqtt_e2e.py` checks the whole loop
+(telemetry in, command out, pause round trip) over a real broker.

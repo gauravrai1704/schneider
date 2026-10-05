@@ -4,8 +4,8 @@ import { StatusChip } from './ui'
 
 function feedChip(feed) {
   if (!feed) return <StatusChip tone="neutral">Unknown</StatusChip>
-  if (feed.source === 'live') return <StatusChip tone="good">Live</StatusChip>
-  if (feed.source === 'disk-cache') return <StatusChip tone="warning">Cached</StatusChip>
+  if (feed.source === 'live' || feed.fresh) return <StatusChip tone="good">Live</StatusChip>
+  if (feed.source === 'disk-cache') return <StatusChip tone="warning">Cached (stale)</StatusChip>
   return <StatusChip tone="critical">Unavailable</StatusChip>
 }
 

@@ -72,7 +72,19 @@ mock/
   mock_generator.py   fake ESP32 telemetry, until real hardware is ready
 docs/
   api_contract.md     MQTT + REST contract to share with the hardware teammate
+tools/
+  preflight.py        demo-day readiness check (python -m tools.preflight)
+  local_broker.py     pure-Python MQTT broker, no Mosquitto needed
+  fake_esp32.py       mock buildings as a separate MQTT client
 tests/                pytest suite (`python -m pytest -q`)
+```
+
+## Testing
+
+```bash
+python -m pytest -q                         # everything (~1 min), incl. an end-to-end MQTT test
+python -m pytest -q --cov=app --cov=mock    # with coverage
+python -m tools.preflight                   # before a demo
 ```
 
 ## Environment variables
@@ -82,6 +94,7 @@ tests/                pytest suite (`python -m pytest -q`)
 | `VTB_MQTT_URL` | e.g. `mqtt://localhost:1883` — use a real broker instead of the in-memory bus (mock auto-disabled) |
 | `VTB_DISABLE_MOCK=1` | don't start the in-process mock telemetry generator |
 | `VTB_OFFLINE=1` | never call external APIs (no venue wifi); uses cached data/fallbacks |
+| `VTB_DEMO_TIME=HH:MM` | demo clock: start the system at this time of day (e.g. an evening demo of midday solar); shown as a badge in the dashboard |
 
 ## What's real vs mocked today
 

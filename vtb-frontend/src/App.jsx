@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useLiveFeed } from './api'
+import { getSources, useLiveFeed, usePoll } from './api'
 import { useTheme } from './theme'
 import DiscomView from './components/DiscomView'
 import ResidentView from './components/ResidentView'
@@ -24,6 +24,17 @@ function ConnectionPill() {
     >
       <span className={`h-2 w-2 rounded-full ${connected ? 'bg-good animate-pulse' : 'bg-warning'}`} />
       {connected ? 'Live' : 'Reconnecting…'}
+    </span>
+  )
+}
+
+function DemoClockBadge() {
+  const { data } = usePoll(getSources, 60000)
+  if (!data?.demo_clock) return null
+  return (
+    <span className="inline-flex items-center rounded-full bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning-text"
+          title={`The backend is running a demo clock that started at ${data.demo_clock} (VTB_DEMO_TIME)`}>
+      Demo clock
     </span>
   )
 }
@@ -70,6 +81,7 @@ export default function App() {
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            <DemoClockBadge />
             <ConnectionPill />
             <Segmented
               label="Colour theme"
